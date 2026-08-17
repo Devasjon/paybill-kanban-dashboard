@@ -1,0 +1,393 @@
+import { createContext, useContext, useMemo, useState } from "react";
+import type { Lang } from "@/types";
+
+type Dict = Record<string, string>;
+
+const en: Dict = {
+  appName: "Paybill",
+  promoTitle: "Pay smart, live calmer.",
+  promoSubtitle: "Stay organized every month.",
+  personalAccount: "Personal Account",
+
+  navGroupWorkspace: "WORKSPACE",
+  navGroupManagement: "MANAGEMENT",
+  navDashboard: "Dashboard",
+  navAllBills: "All Bills",
+  navCalendar: "Calendar",
+  navMyDebts: "My Debts",
+  navAnalytics: "Analytics",
+  navPaymentMethods: "Payment Methods",
+  navSettings: "Settings",
+
+  searchPlaceholder: "Search bills...",
+  greetingMorning: "Good morning",
+  greetingAfternoon: "Good afternoon",
+  greetingEvening: "Good evening",
+  greetingNight: "Good night",
+  dashboardSubtitle: "Let's keep all your financial commitments in check.",
+  addNewBill: "Add New Bill",
+
+  statTotalUnpaidLabel: "Total Unpaid",
+  statTotalUnpaidSub: "{n} bills still active",
+  statLatePaymentLabel: "Late Payment",
+  statLatePaymentSub: "{n} bill(s) need action",
+  statLatePaymentSubZero: "All caught up",
+  statPaidThisMonthLabel: "Paid This Month",
+  statPaidThisMonthSub: "{n} payments completed",
+  statTotalDebtLabel: "Total Overall Debt",
+  statTotalDebtSubDown: "Down RM{n} this month",
+  statTotalDebtSubUp: "Up RM{n} this month",
+  statTotalDebtSubFlat: "No change this month",
+
+  upcomingBillsTitle: "Upcoming Bills",
+  upcomingBillsSubtitle: "Track due dates and payment status.",
+  viewAll: "View all",
+  filterAll: "All",
+  filterUpcoming: "Upcoming",
+  filterLate: "Late",
+  filterPaid: "Paid",
+  billDueOn: "Due {date}",
+  statusPaid: "Paid",
+  statusLate: "Late",
+  statusDueSoon: "Due Soon",
+  statusUpcoming: "Upcoming",
+  statusOverdueDays: "{n}d overdue",
+  statusDueInDays: "{n}d left",
+  statusDueToday: "Due today",
+  payAction: "Pay",
+  noBillsFound: "No bills found.",
+
+  remindersTitle: "Upcoming Reminders",
+  remindersSubtitle: "Next 7 days",
+  remindersDaysLeft: "{n} days left · RM{amount}",
+  remindersEmpty: "No reminders in the next 7 days.",
+  openCalendar: "Open calendar",
+
+  debtProgressTitle: "Debt Progress",
+  debtProgressSubtitle: "Debt-free goal",
+  debtProgressPercent: "{n}% complete",
+  debtTipGood: "Great! Keep the momentum.",
+  debtTipPaid: "You paid RM{amount} this month.",
+  debtTipStart: "Add your debts to start tracking progress.",
+
+  modalEyebrow: "FINANCIAL RECORD",
+  addBillTitle: "Add new bill",
+  addBillSubtitle: "Enter a commitment to receive reminders.",
+  editBillTitle: "Edit bill",
+  fieldBillName: "Bill name",
+  fieldBillNamePlaceholder: "e.g. Water Bill",
+  fieldCategory: "Category",
+  fieldAmount: "Amount (RM)",
+  fieldDueDate: "Due date",
+  fieldRecurring: "Recurring monthly",
+  fieldWhatsapp: "WhatsApp number (optional)",
+  fieldWhatsappPlaceholder: "+60123456789 (default if empty)",
+  saveBill: "Save bill",
+  cancel: "Cancel",
+  delete: "Delete",
+  edit: "Edit",
+
+  categoryUtilities: "Utilities",
+  categoryHousing: "Housing / Rent",
+  categoryCreditCard: "Credit Card",
+  categorySubscription: "Subscription",
+  categoryInsurance: "Insurance",
+  categoryLoan: "Loan Installment",
+  categoryOther: "Other",
+
+  allBillsTitle: "All Bills",
+  allBillsSubtitle: "Every bill, in one place.",
+  viewList: "List",
+  viewKanban: "Kanban",
+  kanbanColUpcoming: "Upcoming",
+  kanbanColDueSoon: "Due Soon",
+  kanbanColLate: "Late",
+  kanbanColPaid: "Paid",
+  dragHint: "Drag a card to change its status",
+
+  myDebtsTitle: "My Debts",
+  myDebtsSubtitle: "Track balances and payoff progress.",
+  addDebt: "Add Debt",
+  editDebt: "Edit debt",
+  addDebtTitle: "Add new debt",
+  fieldDebtName: "Debt name",
+  fieldDebtNamePlaceholder: "e.g. Maybank Credit Card",
+  fieldDebtType: "Type",
+  fieldOriginalAmount: "Original amount (RM)",
+  fieldCurrentBalance: "Current balance (RM)",
+  fieldApr: "Interest rate (% p.a., optional)",
+  fieldMinPayment: "Minimum payment (RM, optional)",
+  saveDebt: "Save debt",
+  debtPaidOffPercent: "{n}% paid off",
+  debtBalanceOfOriginal: "RM{balance} / RM{original}",
+  totalDebtSummary: "Total across all debts",
+  noDebtsYet: "No debts recorded yet.",
+  extraPaymentLabel: "Extra payment per month (RM)",
+
+  debtTypeCreditCard: "Credit Card",
+  debtTypeStudyLoan: "Study Loan",
+  debtTypePersonalLoan: "Personal Loan",
+  debtTypeCarLoan: "Car Loan",
+  debtTypeHousingLoan: "Housing Loan",
+  debtTypeOther: "Other",
+
+  calendarTitle: "Calendar",
+  calendarSubtitle: "See what's due, at a glance.",
+  legendUpcoming: "Upcoming",
+  legendDueSoon: "Due soon",
+  legendLate: "Late",
+  legendPaid: "Paid",
+  today: "Today",
+
+  settingsTitle: "Settings",
+  settingsSubtitle: "Language, WhatsApp notifications, and your data.",
+  settingsLanguage: "Language",
+  settingsLanguageDesc: "Choose the display language for the whole app.",
+  settingsWhatsapp: "WhatsApp Notifications",
+  settingsWhatsappDesc:
+    "Sent automatically when a bill's status changes. Requires a small backend to keep your WasenderAPI key secret — deploy the companion function, then paste its URL below.",
+  fieldBackendUrl: "Backend endpoint URL",
+  fieldBackendUrlPlaceholder: "https://your-deploy.vercel.app/api/send-whatsapp",
+  fieldDefaultNumber: "Default WhatsApp number",
+  fieldDefaultNumberPlaceholder: "+60123456789",
+  enableWhatsapp: "Enable WhatsApp notifications",
+  saveSettings: "Save settings",
+  settingsData: "Data",
+  settingsDataDesc: "Your data lives only in this browser session — export regularly to keep a backup.",
+  exportData: "Export data (JSON)",
+  importData: "Import data (JSON)",
+  notificationLogTitle: "Notification Log",
+  notificationLogEmpty: "No notifications sent yet.",
+  notifStatusSent: "Sent",
+  notifStatusFailed: "Failed",
+  notifStatusSkipped: "Not sent — no backend configured",
+
+  markPaidToast: "{name} marked as paid",
+  billAddedToast: "{name} added",
+  settingsSavedToast: "Settings saved",
+  dataExportedToast: "Data exported",
+  dataImportedToast: "Data imported",
+  importFailedToast: "Import failed — check the file format",
+
+  analyticsTitle: "Analytics",
+  analyticsSubtitle: "A quick read on your spending and debt trend.",
+  paymentMethodsTitle: "Payment Methods",
+  paymentMethodsSubtitle: "Where your bill payments come from.",
+  comingSoon: "More detail coming soon.",
+};
+
+const ms: Dict = {
+  appName: "Paybill",
+  promoTitle: "Bayar bijak, hidup lebih tenang.",
+  promoSubtitle: "Kekal teratur setiap bulan.",
+  personalAccount: "Akaun Peribadi",
+
+  navGroupWorkspace: "RUANG KERJA",
+  navGroupManagement: "PENGURUSAN",
+  navDashboard: "Dashboard",
+  navAllBills: "Semua Bil",
+  navCalendar: "Kalendar",
+  navMyDebts: "Hutang Saya",
+  navAnalytics: "Analisis",
+  navPaymentMethods: "Kaedah Bayaran",
+  navSettings: "Tetapan",
+
+  searchPlaceholder: "Cari bil...",
+  greetingMorning: "Selamat pagi",
+  greetingAfternoon: "Selamat tengahari",
+  greetingEvening: "Selamat petang",
+  greetingNight: "Selamat malam",
+  dashboardSubtitle: "Mari pastikan semua komitmen kewangan anda terkawal.",
+  addNewBill: "Tambah Bil Baharu",
+
+  statTotalUnpaidLabel: "Jumlah Belum Dibayar",
+  statTotalUnpaidSub: "{n} bil masih aktif",
+  statLatePaymentLabel: "Bayaran Lewat",
+  statLatePaymentSub: "{n} bil perlu tindakan",
+  statLatePaymentSubZero: "Semua terkawal",
+  statPaidThisMonthLabel: "Dibayar Bulan Ini",
+  statPaidThisMonthSub: "{n} pembayaran selesai",
+  statTotalDebtLabel: "Jumlah Keseluruhan Hutang",
+  statTotalDebtSubDown: "Turun RM{n} bulan ini",
+  statTotalDebtSubUp: "Naik RM{n} bulan ini",
+  statTotalDebtSubFlat: "Tiada perubahan bulan ini",
+
+  upcomingBillsTitle: "Bil Akan Datang",
+  upcomingBillsSubtitle: "Jejaki tarikh akhir dan status bayaran.",
+  viewAll: "Lihat semua",
+  filterAll: "Semua",
+  filterUpcoming: "Akan Datang",
+  filterLate: "Lewat",
+  filterPaid: "Dibayar",
+  billDueOn: "Tamat {date}",
+  statusPaid: "Dibayar",
+  statusLate: "Lewat",
+  statusDueSoon: "Akan Tempoh",
+  statusUpcoming: "Akan Datang",
+  statusOverdueDays: "Lewat {n}h",
+  statusDueInDays: "{n}h lagi",
+  statusDueToday: "Tamat hari ini",
+  payAction: "Bayar",
+  noBillsFound: "Tiada bil dijumpai.",
+
+  remindersTitle: "Peringatan Terdekat",
+  remindersSubtitle: "7 hari akan datang",
+  remindersDaysLeft: "{n} hari lagi · RM{amount}",
+  remindersEmpty: "Tiada peringatan dalam 7 hari akan datang.",
+  openCalendar: "Buka kalendar",
+
+  debtProgressTitle: "Kemajuan Hutang",
+  debtProgressSubtitle: "Sasaran bebas hutang",
+  debtProgressPercent: "{n}% selesai",
+  debtTipGood: "Bagus! Kekalkan momentum.",
+  debtTipPaid: "Anda bayar RM{amount} bulan ini.",
+  debtTipStart: "Tambah hutang anda untuk mula jejak kemajuan.",
+
+  modalEyebrow: "REKOD KEWANGAN",
+  addBillTitle: "Tambah bil baharu",
+  addBillSubtitle: "Masukkan komitmen untuk menerima peringatan.",
+  editBillTitle: "Kemaskini bil",
+  fieldBillName: "Nama bil",
+  fieldBillNamePlaceholder: "Contoh: Bil Air",
+  fieldCategory: "Kategori",
+  fieldAmount: "Amaun (RM)",
+  fieldDueDate: "Tarikh akhir",
+  fieldRecurring: "Berulang setiap bulan",
+  fieldWhatsapp: "Nombor WhatsApp (opsyenal)",
+  fieldWhatsappPlaceholder: "+60123456789 (guna lalai jika kosong)",
+  saveBill: "Simpan bil",
+  cancel: "Batal",
+  delete: "Padam",
+  edit: "Edit",
+
+  categoryUtilities: "Utiliti",
+  categoryHousing: "Rumah / Sewa",
+  categoryCreditCard: "Kad Kredit",
+  categorySubscription: "Langganan",
+  categoryInsurance: "Insurans",
+  categoryLoan: "Ansuran Pinjaman",
+  categoryOther: "Lain-lain",
+
+  allBillsTitle: "Semua Bil",
+  allBillsSubtitle: "Semua bil, dalam satu tempat.",
+  viewList: "Senarai",
+  viewKanban: "Kanban",
+  kanbanColUpcoming: "Akan Datang",
+  kanbanColDueSoon: "Akan Tempoh",
+  kanbanColLate: "Lewat",
+  kanbanColPaid: "Dibayar",
+  dragHint: "Seret kad untuk tukar status",
+
+  myDebtsTitle: "Hutang Saya",
+  myDebtsSubtitle: "Jejaki baki dan kemajuan pelunasan.",
+  addDebt: "Tambah Hutang",
+  editDebt: "Kemaskini hutang",
+  addDebtTitle: "Tambah hutang baharu",
+  fieldDebtName: "Nama hutang",
+  fieldDebtNamePlaceholder: "Contoh: Kad Kredit Maybank",
+  fieldDebtType: "Jenis",
+  fieldOriginalAmount: "Jumlah asal (RM)",
+  fieldCurrentBalance: "Baki semasa (RM)",
+  fieldApr: "Kadar faedah (% setahun, opsyenal)",
+  fieldMinPayment: "Bayaran minimum (RM, opsyenal)",
+  saveDebt: "Simpan hutang",
+  debtPaidOffPercent: "{n}% telah dilunaskan",
+  debtBalanceOfOriginal: "RM{balance} / RM{original}",
+  totalDebtSummary: "Jumlah keseluruhan hutang",
+  noDebtsYet: "Tiada hutang direkod lagi.",
+  extraPaymentLabel: "Bayaran tambahan sebulan (RM)",
+
+  debtTypeCreditCard: "Kad Kredit",
+  debtTypeStudyLoan: "Pinjaman Pelajaran",
+  debtTypePersonalLoan: "Pinjaman Peribadi",
+  debtTypeCarLoan: "Pinjaman Kereta",
+  debtTypeHousingLoan: "Pinjaman Rumah",
+  debtTypeOther: "Lain-lain",
+
+  calendarTitle: "Kalendar",
+  calendarSubtitle: "Lihat apa yang tamat tempoh, sepintas lalu.",
+  legendUpcoming: "Akan datang",
+  legendDueSoon: "Akan tempoh",
+  legendLate: "Lewat",
+  legendPaid: "Dibayar",
+  today: "Hari ini",
+
+  settingsTitle: "Tetapan",
+  settingsSubtitle: "Bahasa, notifikasi WhatsApp, dan data anda.",
+  settingsLanguage: "Bahasa",
+  settingsLanguageDesc: "Pilih bahasa paparan untuk seluruh aplikasi.",
+  settingsWhatsapp: "Notifikasi WhatsApp",
+  settingsWhatsappDesc:
+    "Dihantar automatik apabila status bil berubah. Perlukan backend kecil untuk simpan API key WasenderAPI dengan selamat — deploy fungsi tambahan yang disertakan, kemudian tampal URL di bawah.",
+  fieldBackendUrl: "URL endpoint backend",
+  fieldBackendUrlPlaceholder: "https://deploy-anda.vercel.app/api/send-whatsapp",
+  fieldDefaultNumber: "Nombor WhatsApp lalai",
+  fieldDefaultNumberPlaceholder: "+60123456789",
+  enableWhatsapp: "Aktifkan notifikasi WhatsApp",
+  saveSettings: "Simpan tetapan",
+  settingsData: "Data",
+  settingsDataDesc: "Data anda hanya disimpan dalam sesi pelayar ini — eksport secara berkala untuk simpan salinan.",
+  exportData: "Eksport data (JSON)",
+  importData: "Import data (JSON)",
+  notificationLogTitle: "Log Notifikasi",
+  notificationLogEmpty: "Belum ada notifikasi dihantar.",
+  notifStatusSent: "Dihantar",
+  notifStatusFailed: "Gagal",
+  notifStatusSkipped: "Tidak dihantar — backend belum dikonfigurasi",
+
+  markPaidToast: "{name} ditandakan dibayar",
+  billAddedToast: "{name} ditambah",
+  settingsSavedToast: "Tetapan disimpan",
+  dataExportedToast: "Data dieksport",
+  dataImportedToast: "Data diimport",
+  importFailedToast: "Import gagal — semak format fail",
+
+  analyticsTitle: "Analisis",
+  analyticsSubtitle: "Tinjauan ringkas perbelanjaan dan trend hutang anda.",
+  paymentMethodsTitle: "Kaedah Bayaran",
+  paymentMethodsSubtitle: "Sumber pembayaran bil anda.",
+  comingSoon: "Butiran lanjut akan datang.",
+};
+
+const dictionaries: Record<Lang, Dict> = { en, ms };
+
+interface I18nContextValue {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}
+
+const I18nContext = createContext<I18nContextValue | null>(null);
+
+export function I18nProvider({
+  children,
+  initialLang = "en",
+}: {
+  children: React.ReactNode;
+  initialLang?: Lang;
+}) {
+  const [lang, setLang] = useState<Lang>(initialLang);
+
+  const t = useMemo(() => {
+    return (key: string, vars?: Record<string, string | number>) => {
+      const dict = dictionaries[lang];
+      let str = dict[key] ?? dictionaries.en[key] ?? key;
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) {
+          str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+        }
+      }
+      return str;
+    };
+  }, [lang]);
+
+  const value = useMemo(() => ({ lang, setLang, t }), [lang, t]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n() {
+  const ctx = useContext(I18nContext);
+  if (!ctx) throw new Error("useI18n must be used within I18nProvider");
+  return ctx;
+}
