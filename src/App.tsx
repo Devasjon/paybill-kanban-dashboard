@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { AppData, Bill, Debt, WhatsAppConfig, Lang } from "@/types";
+import type { AppData, Bill, Debt, WhatsAppConfig, Lang, SyncConfig, SyncStatus } from "@/types";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { billStatus } from "@/lib/bills";
 import { sampleBills, sampleDebts } from "@/lib/sampleData";
 import { sendWhatsAppNotification } from "@/lib/whatsapp";
+import { fetchCloudState, pushCloudState, type CloudState } from "@/lib/cloudSync";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 import { Dashboard } from "@/pages/Dashboard";
@@ -47,6 +48,14 @@ function AppShell() {
     enabled: false,
   });
   const [notificationLog, setNotificationLog] = useState<AppData["notificationLog"]>([]);
+
+  const [syncConfig, setSyncConfig] = useState<SyncConfig>({ url: "", token: "", enabled: false });
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  // True once the initial pull-or-seed for the *current* sync config has finished —
+  // guards against the auto-push effect firing before we know whether to pull or push first.
+  const syncReadyRef = useRef(false);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [page, setPage] = useState<Page>("dashboard");
   const [search, setSearch] = useState("");
@@ -121,6 +130,97 @@ function AppShell() {
     if (data.lang) setLang(data.lang);
     toast.success(t("dataImportedToast"));
   }
+
+  function handleSaveSyncConfig(config: SyncConfig) {
+    setSyncConfig(config);
+    toast.success(t("settingsSavedToast"));
+  }
+
+  async function pushToCloud(config: SyncConfig, snapshot: CloudState) {
+    setSyncStatus("syncing");
+    try {
+      const updatedAt = await pushCloudState(config, snapshot);
+      setSyncStatus("synced");
+      setLastSyncedAt(updatedAt ?? new Date().toISOString());
+    } catch {
+      setSyncStatus("error");
+      toast.error(t("syncFailedToast"));
+    }
+  }
+
+  function handleSyncNow() {
+    if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) return;
+    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang });
+  }
+
+  // When sync is turned on (or its URL/token change), pull whatever's already on the
+  // server first. If nothing's been synced yet, seed the server with what's on this
+  // device instead — either way, this device and the server agree before we start
+  // auto-pushing local edits below.
+  useEffect(() => {
+    syncReadyRef.current = false;
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = null;
+    }
+
+    if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) {
+      setSyncStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setSyncStatus("syncing");
+      try {
+        const result = await fetchCloudState(syncConfig);
+        if (cancelled) return;
+        if (result.data) {
+          setBills(result.data.bills ?? []);
+          setDebts(result.data.debts ?? []);
+          if (result.data.whatsapp) setWhatsapp(result.data.whatsapp);
+          setNotificationLog(result.data.notificationLog ?? []);
+          if (result.data.lang) setLang(result.data.lang);
+          setSyncStatus("synced");
+          setLastSyncedAt(result.updatedAt);
+        } else {
+          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang });
+          setSyncStatus("synced");
+          setLastSyncedAt(new Date().toISOString());
+        }
+      } catch {
+        if (cancelled) return;
+        setSyncStatus("error");
+        toast.error(t("syncFailedToast"));
+      } finally {
+        if (!cancelled) syncReadyRef.current = true;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Deliberately only re-runs when the sync target itself changes, not on every
+    // bill/debt edit — those are picked up by the auto-push effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncConfig.enabled, syncConfig.url, syncConfig.token]);
+
+  // Auto-push local changes to the cloud (debounced) once the initial pull/seed above
+  // has settled, so every device that's online converges on the same data.
+  useEffect(() => {
+    if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) return;
+    if (!syncReadyRef.current) return;
+
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang });
+    }, 800);
+
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bills, debts, whatsapp, notificationLog, lang]);
 
   const debtRelatedPaidThisMonth = useMemo(() => {
     return bills
@@ -201,6 +301,11 @@ function AppShell() {
             onSaveWhatsapp={handleSaveWhatsapp}
             onSetLang={handleSetLang}
             onImport={handleImport}
+            syncConfig={syncConfig}
+            syncStatus={syncStatus}
+            lastSyncedAt={lastSyncedAt}
+            onSaveSyncConfig={handleSaveSyncConfig}
+            onSyncNow={handleSyncNow}
           />
         );
       default:

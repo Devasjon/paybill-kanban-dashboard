@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AppData, Lang, WhatsAppConfig } from "@/types";
+import type { AppData, Lang, SyncConfig, SyncStatus, WhatsAppConfig } from "@/types";
 import { useI18n } from "@/lib/i18n";
 import { exportData, importData } from "@/lib/storage";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,18 +10,28 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { Download, Upload, Globe } from "lucide-react";
+import { Download, Upload, Globe, RefreshCw, CloudCog } from "lucide-react";
 
 export function Settings({
   data,
   onSaveWhatsapp,
   onSetLang,
   onImport,
+  syncConfig,
+  syncStatus,
+  lastSyncedAt,
+  onSaveSyncConfig,
+  onSyncNow,
 }: {
   data: AppData;
   onSaveWhatsapp: (config: WhatsAppConfig) => void;
   onSetLang: (lang: Lang) => void;
   onImport: (data: AppData) => void;
+  syncConfig: SyncConfig;
+  syncStatus: SyncStatus;
+  lastSyncedAt: string | null;
+  onSaveSyncConfig: (config: SyncConfig) => void;
+  onSyncNow: () => void;
 }) {
   const { t, lang } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,14 +40,28 @@ export function Settings({
   const [defaultNumber, setDefaultNumber] = useState(data.whatsapp.defaultNumber);
   const [enabled, setEnabled] = useState(data.whatsapp.enabled);
 
+  const [syncUrl, setSyncUrl] = useState(syncConfig.url);
+  const [syncToken, setSyncToken] = useState(syncConfig.token);
+  const [syncEnabled, setSyncEnabled] = useState(syncConfig.enabled);
+
   useEffect(() => {
     setBackendUrl(data.whatsapp.backendUrl);
     setDefaultNumber(data.whatsapp.defaultNumber);
     setEnabled(data.whatsapp.enabled);
   }, [data.whatsapp]);
 
+  useEffect(() => {
+    setSyncUrl(syncConfig.url);
+    setSyncToken(syncConfig.token);
+    setSyncEnabled(syncConfig.enabled);
+  }, [syncConfig]);
+
   function handleSave() {
     onSaveWhatsapp({ backendUrl: backendUrl.trim(), defaultNumber: defaultNumber.trim(), enabled });
+  }
+
+  function handleSaveSync() {
+    onSaveSyncConfig({ url: syncUrl.trim(), token: syncToken.trim(), enabled: syncEnabled });
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -128,6 +152,70 @@ export function Settings({
           <Button onClick={handleSave} className="mt-4 rounded-full h-10 px-5 bg-[#17171d] hover:bg-[#26262f]">
             {t("saveSettings")}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl border-black/5 shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2">
+                <CloudCog className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">{t("settingsSync")}</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-md">{t("settingsSyncDesc")}</p>
+            </div>
+            <label className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-medium">{t("enableSync")}</span>
+              <Switch checked={syncEnabled} onCheckedChange={setSyncEnabled} />
+            </label>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3.5 mt-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="sync-url">{t("fieldSyncUrl")}</Label>
+              <Input
+                id="sync-url"
+                value={syncUrl}
+                onChange={(e) => setSyncUrl(e.target.value)}
+                placeholder={t("fieldSyncUrlPlaceholder")}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="sync-token">{t("fieldSyncToken")}</Label>
+              <Input
+                id="sync-token"
+                type="password"
+                value={syncToken}
+                onChange={(e) => setSyncToken(e.target.value)}
+                placeholder={t("fieldSyncTokenPlaceholder")}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 mt-4 flex-wrap">
+            <Button onClick={handleSaveSync} className="rounded-full h-10 px-5 bg-[#17171d] hover:bg-[#26262f]">
+              {t("saveSettings")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onSyncNow}
+              disabled={syncStatus === "syncing" || !syncConfig.enabled}
+              className="rounded-full h-10 px-5 gap-1.5"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", syncStatus === "syncing" && "animate-spin")} />
+              {t("syncNow")}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {syncStatus === "syncing"
+                ? t("syncStatusSyncing")
+                : syncStatus === "error"
+                ? t("syncStatusError")
+                : syncStatus === "synced" && lastSyncedAt
+                ? t("syncStatusSynced", { time: new Date(lastSyncedAt).toLocaleString() })
+                : t("syncStatusIdle")}
+            </span>
+          </div>
         </CardContent>
       </Card>
 

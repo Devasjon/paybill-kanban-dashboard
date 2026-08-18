@@ -59,6 +59,14 @@ export interface WhatsAppConfig {
   enabled: boolean;
 }
 
+export interface SyncConfig {
+  url: string; // e.g. https://your-domain.com/api/state
+  token: string; // bearer token, matches APP_ACCESS_TOKEN on the backend
+  enabled: boolean;
+}
+
+export type SyncStatus = "idle" | "syncing" | "synced" | "error";
+
 export interface AppData {
   bills: Bill[];
   debts: Debt[];
