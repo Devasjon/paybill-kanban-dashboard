@@ -8,7 +8,7 @@ import { StatCard } from "@/components/StatCard";
 import { BillRow } from "@/components/BillRow";
 import { RemindersPanel } from "@/components/RemindersPanel";
 import { DebtProgressPanel } from "@/components/DebtProgressPanel";
-import { FileText, AlertTriangle, CheckCircle2, TrendingUp, Plus } from "lucide-react";
+import { FileText, AlertTriangle, CheckCircle2, TrendingUp, Plus, ScanLine } from "lucide-react";
 import { statCardPalette } from "@/lib/theme";
 
 export function Dashboard({
@@ -16,6 +16,7 @@ export function Dashboard({
   debts,
   onMarkPaid,
   onOpenAddBill,
+  onOpenScanReceipt,
   onGoToBills,
   onGoToCalendar,
   debtDeltaThisMonth,
@@ -25,6 +26,7 @@ export function Dashboard({
   debts: Debt[];
   onMarkPaid: (bill: Bill) => void;
   onOpenAddBill: () => void;
+  onOpenScanReceipt: () => void;
   onGoToBills: () => void;
   onGoToCalendar: () => void;
   debtDeltaThisMonth: number;
@@ -61,10 +63,20 @@ export function Dashboard({
           </h2>
           <p className="text-sm text-muted-foreground mt-1">{t("dashboardSubtitle")}</p>
         </div>
-        <Button onClick={onOpenAddBill} className="rounded-full h-10 px-5 bg-[#17171d] hover:bg-[#26262f] gap-1.5">
-          <Plus className="h-4 w-4" />
-          {t("addNewBill")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={onOpenScanReceipt}
+            className="rounded-full h-10 px-5 gap-1.5"
+          >
+            <ScanLine className="h-4 w-4" />
+            {t("scanReceipt")}
+          </Button>
+          <Button onClick={onOpenAddBill} className="rounded-full h-10 px-5 bg-[#17171d] hover:bg-[#26262f] gap-1.5">
+            <Plus className="h-4 w-4" />
+            {t("addNewBill")}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

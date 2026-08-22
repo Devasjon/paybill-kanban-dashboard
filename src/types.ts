@@ -67,6 +67,21 @@ export interface SyncConfig {
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
+export interface ScanConfig {
+  url: string; // e.g. https://your-domain.com/api/scan-receipt
+  enabled: boolean;
+  // No separate token field — reuses SyncConfig.token (the same
+  // APP_ACCESS_TOKEN both endpoints are protected by on the backend).
+}
+
+export interface ScannedReceipt {
+  merchant: string;
+  amount: number;
+  date: string | null; // ISO yyyy-mm-dd
+  category: BillCategory;
+  isPaid: boolean;
+}
+
 export interface AppData {
   bills: Bill[];
   debts: Debt[];

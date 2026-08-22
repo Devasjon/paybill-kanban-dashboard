@@ -25,6 +25,7 @@ export function BillFormModal({
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
   const [recurring, setRecurring] = useState(true);
+  const [paid, setPaid] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState("");
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function BillFormModal({
       setAmount(initial?.amount?.toString() ?? "");
       setDueDate(initial?.dueDate ?? new Date().toISOString().slice(0, 10));
       setRecurring(initial?.recurring ?? true);
+      setPaid(initial?.paid ?? false);
       setWhatsappNumber(initial?.whatsappNumber ?? "");
     }
   }, [open, initial]);
@@ -47,7 +49,7 @@ export function BillFormModal({
       amount: parseFloat(amount),
       dueDate,
       recurring,
-      paid: initial?.paid ?? false,
+      paid,
       whatsappNumber: whatsappNumber.trim() || undefined,
     });
     onOpenChange(false);
@@ -120,6 +122,15 @@ export function BillFormModal({
                 className="h-4 w-4 rounded border-input"
               />
               {t("fieldRecurring")}
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={paid}
+                onChange={(e) => setPaid(e.target.checked)}
+                className="h-4 w-4 rounded border-input"
+              />
+              {t("fieldAlreadyPaid")}
             </label>
           </div>
 

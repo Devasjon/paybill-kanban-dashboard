@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { AppData, Bill, Debt, WhatsAppConfig, Lang, SyncConfig, SyncStatus } from "@/types";
+import type {
+  AppData,
+  Bill,
+  Debt,
+  WhatsAppConfig,
+  Lang,
+  ScanConfig,
+  ScannedReceipt,
+  SyncConfig,
+  SyncStatus,
+} from "@/types";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { billStatus } from "@/lib/bills";
 import { sampleBills, sampleDebts } from "@/lib/sampleData";
@@ -15,6 +25,7 @@ import { CalendarPage } from "@/pages/Calendar";
 import { Settings } from "@/pages/Settings";
 import { BillFormModal } from "@/components/BillFormModal";
 import { DebtFormModal } from "@/components/DebtFormModal";
+import { ScanReceiptModal } from "@/components/ScanReceiptModal";
 import { Toaster } from "@/components/ui/sonner";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -50,6 +61,8 @@ function AppShell() {
   const [notificationLog, setNotificationLog] = useState<AppData["notificationLog"]>([]);
 
   const [syncConfig, setSyncConfig] = useState<SyncConfig>({ url: "", token: "", enabled: false });
+  const [scanConfig, setScanConfig] = useState<ScanConfig>({ url: "", enabled: false });
+  const [scanModalOpen, setScanModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   // True once the initial pull-or-seed for the *current* sync config has finished —
@@ -134,6 +147,25 @@ function AppShell() {
   function handleSaveSyncConfig(config: SyncConfig) {
     setSyncConfig(config);
     toast.success(t("settingsSavedToast"));
+  }
+
+  function handleSaveScanConfig(config: ScanConfig) {
+    setScanConfig(config);
+    toast.success(t("settingsSavedToast"));
+  }
+
+  function handleReceiptScanned(result: ScannedReceipt) {
+    setEditingBill({
+      id: crypto.randomUUID(),
+      name: result.merchant,
+      amount: result.amount,
+      dueDate: result.date ?? new Date().toISOString().slice(0, 10),
+      category: result.category,
+      recurring: false,
+      paid: result.isPaid,
+    });
+    setBillModalOpen(true);
+    toast.success(t("scanSuccessToast"));
   }
 
   async function pushToCloud(config: SyncConfig, snapshot: CloudState) {
@@ -249,6 +281,7 @@ function AppShell() {
               setEditingBill(null);
               setBillModalOpen(true);
             }}
+            onOpenScanReceipt={() => setScanModalOpen(true)}
             onGoToBills={() => setPage("bills")}
             onGoToCalendar={() => setPage("calendar")}
             debtDeltaThisMonth={debtRelatedPaidThisMonth}
@@ -306,6 +339,8 @@ function AppShell() {
             lastSyncedAt={lastSyncedAt}
             onSaveSyncConfig={handleSaveSyncConfig}
             onSyncNow={handleSyncNow}
+            scanConfig={scanConfig}
+            onSaveScanConfig={handleSaveScanConfig}
           />
         );
       default:
@@ -332,6 +367,14 @@ function AppShell() {
         onOpenChange={setDebtModalOpen}
         onSave={handleSaveDebt}
         initial={editingDebt}
+      />
+      <ScanReceiptModal
+        open={scanModalOpen}
+        onOpenChange={setScanModalOpen}
+        scanConfig={scanConfig}
+        token={syncConfig.token}
+        onScanned={handleReceiptScanned}
+        onGoToSettings={() => setPage("settings")}
       />
       <Toaster position="top-center" richColors />
     </div>

@@ -26,6 +26,7 @@ const en: Dict = {
   greetingNight: "Good night",
   dashboardSubtitle: "Let's keep all your financial commitments in check.",
   addNewBill: "Add New Bill",
+  scanReceipt: "Scan Receipt",
 
   statTotalUnpaidLabel: "Total Unpaid",
   statTotalUnpaidSub: "{n} bills still active",
@@ -82,10 +83,22 @@ const en: Dict = {
   fieldRecurring: "Recurring monthly",
   fieldWhatsapp: "WhatsApp number (optional)",
   fieldWhatsappPlaceholder: "+60123456789 (default if empty)",
+  fieldAlreadyPaid: "Already paid",
   saveBill: "Save bill",
   cancel: "Cancel",
   delete: "Delete",
   edit: "Edit",
+
+  scanReceiptTitle: "Scan receipt or invoice",
+  scanReceiptSubtitle: "Snap a photo and we'll read the details for you.",
+  scanNotConfigured: "Set up a Receipt Scanner backend URL in Settings first.",
+  scanGoToSettings: "Go to Settings",
+  scanChoosePhoto: "Take or choose a photo",
+  scanChoosePhotoHint: "JPG, PNG — up to 8MB",
+  scanning: "Reading receipt…",
+  scanNow: "Scan",
+  scanFailedGeneric: "Could not read this receipt — try a clearer photo.",
+  scanSuccessToast: "Receipt scanned — review and save below.",
 
   categoryUtilities: "Utilities",
   categoryHousing: "Housing / Rent",
@@ -170,6 +183,14 @@ const en: Dict = {
   syncPushedToast: "Synced to cloud",
   syncFailedToast: "Sync failed — check the URL and token",
 
+  settingsScan: "Receipt Scanner",
+  settingsScanDesc:
+    "Snap a photo of a receipt or invoice and prefill a bill automatically. Uses the same backend and Access Token as Cloud Sync above — just add its scan URL.",
+  fieldScanUrl: "Scan endpoint URL",
+  fieldScanUrlPlaceholder: "https://your-domain.com/api/scan-receipt",
+  fieldScanUrlHint: "Requires Cloud Sync's Access Token to be set above, even if Cloud Sync itself is off.",
+  enableScan: "Enable Receipt Scanner",
+
   settingsData: "Data",
   settingsDataDesc:
     "Without Cloud Sync enabled, your data lives only in this browser session — export regularly to keep a backup.",
@@ -218,6 +239,7 @@ const ms: Dict = {
   greetingNight: "Selamat malam",
   dashboardSubtitle: "Mari pastikan semua komitmen kewangan anda terkawal.",
   addNewBill: "Tambah Bil Baharu",
+  scanReceipt: "Scan Resit",
 
   statTotalUnpaidLabel: "Jumlah Belum Dibayar",
   statTotalUnpaidSub: "{n} bil masih aktif",
@@ -274,10 +296,22 @@ const ms: Dict = {
   fieldRecurring: "Berulang setiap bulan",
   fieldWhatsapp: "Nombor WhatsApp (opsyenal)",
   fieldWhatsappPlaceholder: "+60123456789 (guna lalai jika kosong)",
+  fieldAlreadyPaid: "Sudah dibayar",
   saveBill: "Simpan bil",
   cancel: "Batal",
   delete: "Padam",
   edit: "Edit",
+
+  scanReceiptTitle: "Scan resit atau invois",
+  scanReceiptSubtitle: "Ambil gambar dan kami akan baca butirannya untuk anda.",
+  scanNotConfigured: "Sila tetapkan URL backend Receipt Scanner dalam Tetapan dahulu.",
+  scanGoToSettings: "Pergi ke Tetapan",
+  scanChoosePhoto: "Ambil atau pilih gambar",
+  scanChoosePhotoHint: "JPG, PNG — sehingga 8MB",
+  scanning: "Membaca resit…",
+  scanNow: "Scan",
+  scanFailedGeneric: "Tidak dapat membaca resit ini — cuba gambar yang lebih jelas.",
+  scanSuccessToast: "Resit berjaya diimbas — semak dan simpan di bawah.",
 
   categoryUtilities: "Utiliti",
   categoryHousing: "Rumah / Sewa",
@@ -361,6 +395,14 @@ const ms: Dict = {
   syncPulledToast: "Data dimuatkan dari segerak awan",
   syncPushedToast: "Disegerak ke awan",
   syncFailedToast: "Segerak gagal — semak URL dan token",
+
+  settingsScan: "Receipt Scanner",
+  settingsScanDesc:
+    "Ambil gambar resit atau invois dan isi bil secara automatik. Guna backend dan Token Akses yang sama dengan Segerak Awan di atas — tambah sahaja URL scan.",
+  fieldScanUrl: "URL endpoint scan",
+  fieldScanUrlPlaceholder: "https://domain-anda.com/api/scan-receipt",
+  fieldScanUrlHint: "Perlukan Token Akses Segerak Awan di atas ditetapkan, walaupun Segerak Awan sendiri tidak diaktifkan.",
+  enableScan: "Aktifkan Receipt Scanner",
 
   settingsData: "Data",
   settingsDataDesc:

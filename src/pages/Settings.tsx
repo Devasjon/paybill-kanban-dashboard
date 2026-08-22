@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AppData, Lang, SyncConfig, SyncStatus, WhatsAppConfig } from "@/types";
+import type { AppData, Lang, ScanConfig, SyncConfig, SyncStatus, WhatsAppConfig } from "@/types";
 import { useI18n } from "@/lib/i18n";
 import { exportData, importData } from "@/lib/storage";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { Download, Upload, Globe, RefreshCw, CloudCog } from "lucide-react";
+import { Download, Upload, Globe, RefreshCw, CloudCog, ScanLine } from "lucide-react";
 
 export function Settings({
   data,
@@ -22,6 +22,8 @@ export function Settings({
   lastSyncedAt,
   onSaveSyncConfig,
   onSyncNow,
+  scanConfig,
+  onSaveScanConfig,
 }: {
   data: AppData;
   onSaveWhatsapp: (config: WhatsAppConfig) => void;
@@ -32,6 +34,8 @@ export function Settings({
   lastSyncedAt: string | null;
   onSaveSyncConfig: (config: SyncConfig) => void;
   onSyncNow: () => void;
+  scanConfig: ScanConfig;
+  onSaveScanConfig: (config: ScanConfig) => void;
 }) {
   const { t, lang } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +47,9 @@ export function Settings({
   const [syncUrl, setSyncUrl] = useState(syncConfig.url);
   const [syncToken, setSyncToken] = useState(syncConfig.token);
   const [syncEnabled, setSyncEnabled] = useState(syncConfig.enabled);
+
+  const [scanUrl, setScanUrl] = useState(scanConfig.url);
+  const [scanEnabled, setScanEnabled] = useState(scanConfig.enabled);
 
   useEffect(() => {
     setBackendUrl(data.whatsapp.backendUrl);
@@ -56,12 +63,21 @@ export function Settings({
     setSyncEnabled(syncConfig.enabled);
   }, [syncConfig]);
 
+  useEffect(() => {
+    setScanUrl(scanConfig.url);
+    setScanEnabled(scanConfig.enabled);
+  }, [scanConfig]);
+
   function handleSave() {
     onSaveWhatsapp({ backendUrl: backendUrl.trim(), defaultNumber: defaultNumber.trim(), enabled });
   }
 
   function handleSaveSync() {
     onSaveSyncConfig({ url: syncUrl.trim(), token: syncToken.trim(), enabled: syncEnabled });
+  }
+
+  function handleSaveScan() {
+    onSaveScanConfig({ url: scanUrl.trim(), enabled: scanEnabled });
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -216,6 +232,39 @@ export function Settings({
                 : t("syncStatusIdle")}
             </span>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl border-black/5 shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2">
+                <ScanLine className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">{t("settingsScan")}</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-md">{t("settingsScanDesc")}</p>
+            </div>
+            <label className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-medium">{t("enableScan")}</span>
+              <Switch checked={scanEnabled} onCheckedChange={setScanEnabled} />
+            </label>
+          </div>
+
+          <div className="grid gap-1.5 mt-4">
+            <Label htmlFor="scan-url">{t("fieldScanUrl")}</Label>
+            <Input
+              id="scan-url"
+              value={scanUrl}
+              onChange={(e) => setScanUrl(e.target.value)}
+              placeholder={t("fieldScanUrlPlaceholder")}
+            />
+            <p className="text-[11px] text-muted-foreground">{t("fieldScanUrlHint")}</p>
+          </div>
+
+          <Button onClick={handleSaveScan} className="mt-4 rounded-full h-10 px-5 bg-[#17171d] hover:bg-[#26262f]">
+            {t("saveSettings")}
+          </Button>
         </CardContent>
       </Card>
 
