@@ -82,6 +82,12 @@ export interface ScannedReceipt {
   isPaid: boolean;
 }
 
+export interface CalendarNote {
+  id: string;
+  date: string; // ISO yyyy-mm-dd
+  text: string;
+}
+
 export interface AppData {
   bills: Bill[];
   debts: Debt[];
@@ -89,4 +95,5 @@ export interface AppData {
   whatsapp: WhatsAppConfig;
   notificationLog: NotificationLogEntry[];
   extraDebtPayment: number;
+  notes: CalendarNote[];
 }

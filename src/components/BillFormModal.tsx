@@ -13,11 +13,13 @@ export function BillFormModal({
   onOpenChange,
   onSave,
   initial,
+  defaultDueDate,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (bill: Bill) => void;
   initial?: Bill | null;
+  defaultDueDate?: string;
 }) {
   const { t } = useI18n();
   const [name, setName] = useState("");
@@ -33,12 +35,12 @@ export function BillFormModal({
       setName(initial?.name ?? "");
       setCategory(initial?.category ?? "utilities");
       setAmount(initial?.amount?.toString() ?? "");
-      setDueDate(initial?.dueDate ?? new Date().toISOString().slice(0, 10));
+      setDueDate(initial?.dueDate ?? defaultDueDate ?? new Date().toISOString().slice(0, 10));
       setRecurring(initial?.recurring ?? true);
       setPaid(initial?.paid ?? false);
       setWhatsappNumber(initial?.whatsappNumber ?? "");
     }
-  }, [open, initial]);
+  }, [open, initial, defaultDueDate]);
 
   function handleSave() {
     if (!name.trim() || !amount || !dueDate) return;

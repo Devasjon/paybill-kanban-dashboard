@@ -1,10 +1,13 @@
 import { useRef, useState } from "react";
-import { Camera, Loader2, ScanLine, X } from "lucide-react";
+import { Camera, FileText, FolderOpen, Loader2, ScanLine, X } from "lucide-react";
 import type { ScanConfig, ScannedReceipt } from "@/types";
 import { useI18n } from "@/lib/i18n";
 import { scanReceipt } from "@/lib/receiptScan";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+
+const ACCEPTED_TYPES = "image/*,application/pdf";
+const MAX_BYTES = 8 * 1024 * 1024; // matches the backend's 8MB limit
 
 export function ScanReceiptModal({
   open,
@@ -22,6 +25,7 @@ export function ScanReceiptModal({
   onGoToSettings: () => void;
 }) {
   const { t } = useI18n();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -29,6 +33,7 @@ export function ScanReceiptModal({
   const [error, setError] = useState<string | null>(null);
 
   const configured = scanConfig.enabled && !!scanConfig.url && !!token;
+  const isPdf = file?.type === "application/pdf";
 
   function reset() {
     setFile(null);
@@ -38,6 +43,7 @@ export function ScanReceiptModal({
     });
     setScanning(false);
     setError(null);
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -49,11 +55,17 @@ export function ScanReceiptModal({
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    if (f.size > MAX_BYTES) {
+      setError(t("scanFileTooLarge"));
+      return;
+    }
+
     setError(null);
     setFile(f);
     setPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(f);
+      return f.type === "application/pdf" ? null : URL.createObjectURL(f);
     });
   }
 
@@ -96,9 +108,16 @@ export function ScanReceiptModal({
             </div>
           ) : (
             <div className="mt-5 space-y-3.5">
-              {previewUrl ? (
+              {file ? (
                 <div className="relative rounded-xl overflow-hidden border border-black/10">
-                  <img src={previewUrl} alt="" className="w-full max-h-64 object-contain bg-black/5" />
+                  {isPdf ? (
+                    <div className="flex items-center gap-3 p-4 bg-black/5">
+                      <FileText className="h-8 w-8 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-medium truncate">{file.name}</span>
+                    </div>
+                  ) : (
+                    <img src={previewUrl ?? undefined} alt="" className="w-full max-h-64 object-contain bg-black/5" />
+                  )}
                   <button
                     type="button"
                     onClick={reset}
@@ -109,22 +128,39 @@ export function ScanReceiptModal({
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full rounded-xl border border-dashed border-black/15 p-8 flex flex-col items-center gap-2 text-muted-foreground hover:bg-black/[0.02] hover:border-black/25 transition-colors"
-                >
-                  <Camera className="h-6 w-6" />
-                  <span className="text-sm font-medium">{t("scanChoosePhoto")}</span>
-                  <span className="text-xs">{t("scanChoosePhotoHint")}</span>
-                </button>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="rounded-xl border border-dashed border-black/15 p-5 flex flex-col items-center gap-2 text-muted-foreground hover:bg-black/[0.02] hover:border-black/25 transition-colors"
+                  >
+                    <Camera className="h-6 w-6" />
+                    <span className="text-xs font-medium text-center">{t("scanTakePhoto")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-xl border border-dashed border-black/15 p-5 flex flex-col items-center gap-2 text-muted-foreground hover:bg-black/[0.02] hover:border-black/25 transition-colors"
+                  >
+                    <FolderOpen className="h-6 w-6" />
+                    <span className="text-xs font-medium text-center">{t("scanChooseFile")}</span>
+                  </button>
+                  <p className="col-span-2 text-center text-xs text-muted-foreground">{t("scanChoosePhotoHint")}</p>
+                </div>
               )}
 
               <input
-                ref={fileInputRef}
+                ref={cameraInputRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_TYPES}
                 className="hidden"
                 onChange={handleFileChange}
               />

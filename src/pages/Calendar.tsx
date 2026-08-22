@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
-import type { Bill } from "@/types";
+import type { Bill, CalendarNote } from "@/types";
 import { useI18n } from "@/lib/i18n";
 import { billStatus, formatRM } from "@/lib/bills";
 import { statusTheme } from "@/lib/theme";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DayModal } from "@/components/DayModal";
 
 const MONTHS_EN = [
   "January", "February", "March", "April", "May", "June",
@@ -24,10 +25,25 @@ function toIso(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-export function CalendarPage({ bills }: { bills: Bill[] }) {
+export function CalendarPage({
+  bills,
+  notes,
+  onEditBill,
+  onAddBill,
+  onEditNote,
+  onAddNote,
+}: {
+  bills: Bill[];
+  notes: CalendarNote[];
+  onEditBill: (bill: Bill) => void;
+  onAddBill: (date: string) => void;
+  onEditNote: (note: CalendarNote) => void;
+  onAddNote: (date: string) => void;
+}) {
   const { t, lang } = useI18n();
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const months = lang === "ms" ? MONTHS_MS : MONTHS_EN;
   const weekdays = lang === "ms" ? WEEKDAYS_MS : WEEKDAYS_EN;
@@ -41,6 +57,16 @@ export function CalendarPage({ bills }: { bills: Bill[] }) {
     }
     return map;
   }, [bills]);
+
+  const notesByDate = useMemo(() => {
+    const map = new Map<string, CalendarNote[]>();
+    for (const n of notes) {
+      const list = map.get(n.date) ?? [];
+      list.push(n);
+      map.set(n.date, list);
+    }
+    return map;
+  }, [notes]);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -124,12 +150,18 @@ export function CalendarPage({ bills }: { bills: Bill[] }) {
               if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
               const iso = toIso(year, month, day);
               const dayBills = billsByDate.get(iso) ?? [];
+              const dayNotes = notesByDate.get(iso) ?? [];
+              const totalItems = dayBills.length + dayNotes.length;
+              const showsNotePreview = dayNotes.length > 0 && dayBills.length < 2;
+              const shownCount = Math.min(dayBills.length, 2) + (showsNotePreview ? 1 : 0);
               const isToday = iso === todayIso;
               return (
-                <div
+                <button
                   key={iso}
+                  type="button"
+                  onClick={() => setSelectedDate(iso)}
                   className={cn(
-                    "aspect-square rounded-lg p-1 sm:p-1.5 flex flex-col gap-0.5 overflow-hidden border",
+                    "aspect-square rounded-lg p-1 sm:p-1.5 flex flex-col gap-0.5 overflow-hidden border text-left hover:ring-2 hover:ring-[#6d5bd0]/30 transition-shadow",
                     isToday ? "border-[#6d5bd0]" : "border-black/5"
                   )}
                   style={{ backgroundColor: isToday ? "#F1F0FE" : "#FAFAF9" }}
@@ -151,16 +183,48 @@ export function CalendarPage({ bills }: { bills: Bill[] }) {
                         </span>
                       );
                     })}
-                    {dayBills.length > 2 && (
-                      <span className="text-[8px] text-muted-foreground px-1">+{dayBills.length - 2}</span>
+                    {showsNotePreview && (
+                      <span className="flex items-center gap-0.5 text-[8px] sm:text-[9px] leading-tight rounded px-1 py-0.5 truncate bg-black/5 text-muted-foreground">
+                        <StickyNote className="h-2 w-2 shrink-0" />
+                        {dayNotes[0].text}
+                      </span>
+                    )}
+                    {totalItems > shownCount && (
+                      <span className="text-[8px] text-muted-foreground px-1">+{totalItems - shownCount}</span>
                     )}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
         </CardContent>
       </Card>
+
+      <DayModal
+        open={selectedDate !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDate(null);
+        }}
+        date={selectedDate}
+        bills={selectedDate ? billsByDate.get(selectedDate) ?? [] : []}
+        notes={selectedDate ? notesByDate.get(selectedDate) ?? [] : []}
+        onEditBill={(bill) => {
+          setSelectedDate(null);
+          onEditBill(bill);
+        }}
+        onAddBill={(date) => {
+          setSelectedDate(null);
+          onAddBill(date);
+        }}
+        onEditNote={(note) => {
+          setSelectedDate(null);
+          onEditNote(note);
+        }}
+        onAddNote={(date) => {
+          setSelectedDate(null);
+          onAddNote(date);
+        }}
+      />
     </div>
   );
 }

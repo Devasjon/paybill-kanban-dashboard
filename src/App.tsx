@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type {
   AppData,
   Bill,
+  CalendarNote,
   Debt,
   WhatsAppConfig,
   Lang,
@@ -26,6 +27,7 @@ import { Settings } from "@/pages/Settings";
 import { BillFormModal } from "@/components/BillFormModal";
 import { DebtFormModal } from "@/components/DebtFormModal";
 import { ScanReceiptModal } from "@/components/ScanReceiptModal";
+import { NoteFormModal } from "@/components/NoteFormModal";
 import { Toaster } from "@/components/ui/sonner";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -76,8 +78,14 @@ function AppShell() {
 
   const [billModalOpen, setBillModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
+  const [newBillDueDate, setNewBillDueDate] = useState<string | undefined>(undefined);
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+
+  const [notes, setNotes] = useState<CalendarNote[]>([]);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<CalendarNote | null>(null);
+  const [newNoteDate, setNewNoteDate] = useState<string | undefined>(undefined);
 
   async function fireNotification(event: Parameters<typeof sendWhatsAppNotification>[0], bill: Bill) {
     const entry = await sendWhatsAppNotification(event, bill, whatsapp, lang);
@@ -126,6 +134,18 @@ function AppShell() {
     setDebts((prev) => prev.filter((d) => d.id !== debt.id));
   }
 
+  function handleSaveNote(note: CalendarNote) {
+    setNotes((prev) => {
+      const exists = prev.some((n) => n.id === note.id);
+      return exists ? prev.map((n) => (n.id === note.id ? note : n)) : [...prev, note];
+    });
+    setEditingNote(null);
+  }
+
+  function handleDeleteNote(note: CalendarNote) {
+    setNotes((prev) => prev.filter((n) => n.id !== note.id));
+  }
+
   function handleSaveWhatsapp(config: WhatsAppConfig) {
     setWhatsapp(config);
     toast.success(t("settingsSavedToast"));
@@ -140,6 +160,7 @@ function AppShell() {
     setDebts(data.debts);
     setWhatsapp(data.whatsapp);
     setNotificationLog(data.notificationLog ?? []);
+    setNotes(data.notes ?? []);
     if (data.lang) setLang(data.lang);
     toast.success(t("dataImportedToast"));
   }
@@ -182,7 +203,7 @@ function AppShell() {
 
   function handleSyncNow() {
     if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) return;
-    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang });
+    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang, notes });
   }
 
   // When sync is turned on (or its URL/token change), pull whatever's already on the
@@ -212,11 +233,12 @@ function AppShell() {
           setDebts(result.data.debts ?? []);
           if (result.data.whatsapp) setWhatsapp(result.data.whatsapp);
           setNotificationLog(result.data.notificationLog ?? []);
+          setNotes(result.data.notes ?? []);
           if (result.data.lang) setLang(result.data.lang);
           setSyncStatus("synced");
           setLastSyncedAt(result.updatedAt);
         } else {
-          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang });
+          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang, notes });
           setSyncStatus("synced");
           setLastSyncedAt(new Date().toISOString());
         }
@@ -245,14 +267,14 @@ function AppShell() {
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang });
+      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang, notes });
     }, 800);
 
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, debts, whatsapp, notificationLog, lang]);
+  }, [bills, debts, whatsapp, notificationLog, lang, notes]);
 
   const debtRelatedPaidThisMonth = useMemo(() => {
     return bills
@@ -267,7 +289,32 @@ function AppShell() {
     whatsapp,
     notificationLog,
     extraDebtPayment: 0,
+    notes,
   };
+
+  function openAddBill(dueDate?: string) {
+    setEditingBill(null);
+    setNewBillDueDate(dueDate);
+    setBillModalOpen(true);
+  }
+
+  function openEditBill(bill: Bill) {
+    setEditingBill(bill);
+    setNewBillDueDate(undefined);
+    setBillModalOpen(true);
+  }
+
+  function openAddNote(date?: string) {
+    setEditingNote(null);
+    setNewNoteDate(date);
+    setNoteModalOpen(true);
+  }
+
+  function openEditNote(note: CalendarNote) {
+    setEditingNote(note);
+    setNewNoteDate(undefined);
+    setNoteModalOpen(true);
+  }
 
   function renderPage() {
     switch (page) {
@@ -277,10 +324,7 @@ function AppShell() {
             bills={bills}
             debts={debts}
             onMarkPaid={handleMarkPaid}
-            onOpenAddBill={() => {
-              setEditingBill(null);
-              setBillModalOpen(true);
-            }}
+            onOpenAddBill={() => openAddBill()}
             onOpenScanReceipt={() => setScanModalOpen(true)}
             onGoToBills={() => setPage("bills")}
             onGoToCalendar={() => setPage("calendar")}
@@ -294,20 +338,23 @@ function AppShell() {
             bills={bills}
             search={search}
             onMarkPaid={handleMarkPaid}
-            onEdit={(bill) => {
-              setEditingBill(bill);
-              setBillModalOpen(true);
-            }}
+            onEdit={openEditBill}
             onDelete={handleDeleteBill}
-            onOpenAddBill={() => {
-              setEditingBill(null);
-              setBillModalOpen(true);
-            }}
+            onOpenAddBill={() => openAddBill()}
             onKanbanChange={handleKanbanChange}
           />
         );
       case "calendar":
-        return <CalendarPage bills={bills} />;
+        return (
+          <CalendarPage
+            bills={bills}
+            notes={notes}
+            onEditBill={openEditBill}
+            onAddBill={openAddBill}
+            onEditNote={openEditNote}
+            onAddNote={openAddNote}
+          />
+        );
       case "debts":
         return (
           <Debts
@@ -361,12 +408,21 @@ function AppShell() {
         onOpenChange={setBillModalOpen}
         onSave={handleSaveBill}
         initial={editingBill}
+        defaultDueDate={newBillDueDate}
       />
       <DebtFormModal
         open={debtModalOpen}
         onOpenChange={setDebtModalOpen}
         onSave={handleSaveDebt}
         initial={editingDebt}
+      />
+      <NoteFormModal
+        open={noteModalOpen}
+        onOpenChange={setNoteModalOpen}
+        onSave={handleSaveNote}
+        onDelete={handleDeleteNote}
+        initial={editingNote}
+        defaultDate={newNoteDate}
       />
       <ScanReceiptModal
         open={scanModalOpen}
