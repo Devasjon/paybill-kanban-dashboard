@@ -88,6 +88,8 @@ export interface CalendarNote {
   text: string;
 }
 
+export type DebtStrategy = "avalanche" | "snowball";
+
 export interface AppData {
   bills: Bill[];
   debts: Debt[];

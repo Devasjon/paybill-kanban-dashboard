@@ -23,6 +23,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { AllBills } from "@/pages/AllBills";
 import { Debts } from "@/pages/Debts";
 import { CalendarPage } from "@/pages/Calendar";
+import { Analytics } from "@/pages/Analytics";
 import { Settings } from "@/pages/Settings";
 import { BillFormModal } from "@/components/BillFormModal";
 import { DebtFormModal } from "@/components/DebtFormModal";
@@ -86,6 +87,8 @@ function AppShell() {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<CalendarNote | null>(null);
   const [newNoteDate, setNewNoteDate] = useState<string | undefined>(undefined);
+
+  const [extraDebtPayment, setExtraDebtPayment] = useState(0);
 
   async function fireNotification(event: Parameters<typeof sendWhatsAppNotification>[0], bill: Bill) {
     const entry = await sendWhatsAppNotification(event, bill, whatsapp, lang);
@@ -161,6 +164,7 @@ function AppShell() {
     setWhatsapp(data.whatsapp);
     setNotificationLog(data.notificationLog ?? []);
     setNotes(data.notes ?? []);
+    setExtraDebtPayment(data.extraDebtPayment ?? 0);
     if (data.lang) setLang(data.lang);
     toast.success(t("dataImportedToast"));
   }
@@ -203,7 +207,7 @@ function AppShell() {
 
   function handleSyncNow() {
     if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) return;
-    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang, notes });
+    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes });
   }
 
   // When sync is turned on (or its URL/token change), pull whatever's already on the
@@ -234,11 +238,12 @@ function AppShell() {
           if (result.data.whatsapp) setWhatsapp(result.data.whatsapp);
           setNotificationLog(result.data.notificationLog ?? []);
           setNotes(result.data.notes ?? []);
+          setExtraDebtPayment(result.data.extraDebtPayment ?? 0);
           if (result.data.lang) setLang(result.data.lang);
           setSyncStatus("synced");
           setLastSyncedAt(result.updatedAt);
         } else {
-          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang, notes });
+          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes });
           setSyncStatus("synced");
           setLastSyncedAt(new Date().toISOString());
         }
@@ -267,14 +272,14 @@ function AppShell() {
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment: 0, lang, notes });
+      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes });
     }, 800);
 
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, debts, whatsapp, notificationLog, lang, notes]);
+  }, [bills, debts, whatsapp, notificationLog, lang, notes, extraDebtPayment]);
 
   const debtRelatedPaidThisMonth = useMemo(() => {
     return bills
@@ -288,7 +293,7 @@ function AppShell() {
     lang,
     whatsapp,
     notificationLog,
-    extraDebtPayment: 0,
+    extraDebtPayment,
     notes,
   };
 
@@ -371,7 +376,13 @@ function AppShell() {
           />
         );
       case "analytics":
-        return <ComingSoonPage titleKey="analyticsTitle" subtitleKey="analyticsSubtitle" />;
+        return (
+          <Analytics
+            debts={debts}
+            extraDebtPayment={extraDebtPayment}
+            onSetExtraDebtPayment={setExtraDebtPayment}
+          />
+        );
       case "paymentMethods":
         return <ComingSoonPage titleKey="paymentMethodsTitle" subtitleKey="paymentMethodsSubtitle" />;
       case "settings":
