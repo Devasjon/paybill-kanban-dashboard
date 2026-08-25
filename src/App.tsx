@@ -11,6 +11,7 @@ import type {
   ScannedReceipt,
   SyncConfig,
   SyncStatus,
+  Theme,
 } from "@/types";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { billStatus } from "@/lib/bills";
@@ -90,6 +91,16 @@ function AppShell() {
 
   const [extraDebtPayment, setExtraDebtPayment] = useState(0);
 
+  const [theme, setTheme] = useState<Theme>("light");
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
+
+  function handleToggleTheme() {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }
+
   async function fireNotification(event: Parameters<typeof sendWhatsAppNotification>[0], bill: Bill) {
     const entry = await sendWhatsAppNotification(event, bill, whatsapp, lang);
     setNotificationLog((prev) => [...prev, entry]);
@@ -166,6 +177,7 @@ function AppShell() {
     setNotes(data.notes ?? []);
     setExtraDebtPayment(data.extraDebtPayment ?? 0);
     if (data.lang) setLang(data.lang);
+    if (data.theme) setTheme(data.theme);
     toast.success(t("dataImportedToast"));
   }
 
@@ -207,7 +219,7 @@ function AppShell() {
 
   function handleSyncNow() {
     if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) return;
-    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes });
+    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme });
   }
 
   // When sync is turned on (or its URL/token change), pull whatever's already on the
@@ -240,10 +252,11 @@ function AppShell() {
           setNotes(result.data.notes ?? []);
           setExtraDebtPayment(result.data.extraDebtPayment ?? 0);
           if (result.data.lang) setLang(result.data.lang);
+          if (result.data.theme) setTheme(result.data.theme);
           setSyncStatus("synced");
           setLastSyncedAt(result.updatedAt);
         } else {
-          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes });
+          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme });
           setSyncStatus("synced");
           setLastSyncedAt(new Date().toISOString());
         }
@@ -272,14 +285,14 @@ function AppShell() {
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes });
+      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme });
     }, 800);
 
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, debts, whatsapp, notificationLog, lang, notes, extraDebtPayment]);
+  }, [bills, debts, whatsapp, notificationLog, lang, notes, extraDebtPayment, theme]);
 
   const debtRelatedPaidThisMonth = useMemo(() => {
     return bills
@@ -291,6 +304,7 @@ function AppShell() {
     bills,
     debts,
     lang,
+    theme,
     whatsapp,
     notificationLog,
     extraDebtPayment,
@@ -407,10 +421,18 @@ function AppShell() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: "#f6f6f4" }}>
+    <div className="min-h-screen flex bg-[#f6f6f4] dark:bg-background">
       <Sidebar page={page} setPage={setPage} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar page={page} search={search} setSearch={setSearch} onOpenMobileMenu={() => setMobileOpen(true)} />
+        <Topbar
+          page={page}
+          search={search}
+          setSearch={setSearch}
+          onOpenMobileMenu={() => setMobileOpen(true)}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
+          notificationLog={notificationLog}
+        />
         <main className="flex-1 p-4 sm:p-6">{renderPage()}</main>
       </div>
 

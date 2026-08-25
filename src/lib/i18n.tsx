@@ -20,6 +20,10 @@ const en: Dict = {
   navSettings: "Settings",
 
   searchPlaceholder: "Search bills...",
+  switchToDark: "Switch to dark mode",
+  switchToLight: "Switch to light mode",
+  whatsNewTitle: "What's New",
+  whatsNewSubtitle: "Recent updates to Paybill.",
   greetingMorning: "Good morning",
   greetingAfternoon: "Good afternoon",
   greetingEvening: "Good evening",
@@ -273,6 +277,10 @@ const ms: Dict = {
   navSettings: "Tetapan",
 
   searchPlaceholder: "Cari bil...",
+  switchToDark: "Tukar ke mod gelap",
+  switchToLight: "Tukar ke mod cerah",
+  whatsNewTitle: "Apa Yang Baharu",
+  whatsNewSubtitle: "Kemas kini terkini untuk Paybill.",
   greetingMorning: "Selamat pagi",
   greetingAfternoon: "Selamat tengahari",
   greetingEvening: "Selamat petang",

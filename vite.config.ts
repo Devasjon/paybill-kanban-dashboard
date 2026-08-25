@@ -36,4 +36,13 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    // Without this, Vite's dep scanner can pre-bundle `react-dom` and
+    // `react-dom/client` as two separate chunks (one pulled in directly by
+    // main.tsx, the other via a transitive import like next-themes), which
+    // makes every hook call using the "other" chunk crash with "Invalid
+    // hook call" / null dispatcher. Forcing both into the include list
+    // keeps them deduped into a single consistent bundle.
+    include: ["react-dom", "react-dom/client"],
+  },
 });

@@ -90,10 +90,13 @@ export interface CalendarNote {
 
 export type DebtStrategy = "avalanche" | "snowball";
 
+export type Theme = "light" | "dark";
+
 export interface AppData {
   bills: Bill[];
   debts: Debt[];
   lang: Lang;
+  theme: Theme;
   whatsapp: WhatsAppConfig;
   notificationLog: NotificationLogEntry[];
   extraDebtPayment: number;
