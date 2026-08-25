@@ -1,25 +1,54 @@
-import type { Debt } from "@/types";
+import { useState } from "react";
+import type { Debt, DebtColorScheme, DebtPayment } from "@/types";
 import { useI18n } from "@/lib/i18n";
 import { debtPaidOffPercent, totalDebtSummary } from "@/lib/debts";
 import { formatRM, formatRMShort } from "@/lib/bills";
 import { debtTypeLabelKey } from "@/lib/labels";
+import { debtColorSchemes } from "@/lib/debtColorSchemes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Landmark } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark, ReceiptText } from "lucide-react";
+import { ColorSchemeToggle } from "@/components/debtDashboard/ColorSchemeToggle";
+import { TransactionLogTable } from "@/components/debtDashboard/TransactionLogTable";
+import { TransactionLogFormModal } from "@/components/debtDashboard/TransactionLogFormModal";
 
 export function Debts({
   debts,
   onOpenAddDebt,
   onEdit,
   onDelete,
+  debtColorScheme,
+  onSetDebtColorScheme,
+  debtPayments,
+  onSaveDebtPayment,
+  onDeleteDebtPayment,
 }: {
   debts: Debt[];
   onOpenAddDebt: () => void;
   onEdit: (debt: Debt) => void;
   onDelete: (debt: Debt) => void;
+  debtColorScheme: DebtColorScheme;
+  onSetDebtColorScheme: (scheme: DebtColorScheme) => void;
+  debtPayments: DebtPayment[];
+  onSaveDebtPayment: (payment: DebtPayment) => void;
+  onDeleteDebtPayment: (payment: DebtPayment) => void;
 }) {
   const { t } = useI18n();
   const summary = totalDebtSummary(debts);
+  const palette = debtColorSchemes[debtColorScheme];
+
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<DebtPayment | null>(null);
+
+  function openAddPayment() {
+    setEditingPayment(null);
+    setPaymentModalOpen(true);
+  }
+
+  function openEditPayment(payment: DebtPayment) {
+    setEditingPayment(payment);
+    setPaymentModalOpen(true);
+  }
 
   return (
     <div className="space-y-4">
@@ -28,10 +57,13 @@ export function Debts({
           <h2 className="text-xl font-bold">{t("myDebtsTitle")}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">{t("myDebtsSubtitle")}</p>
         </div>
-        <Button onClick={onOpenAddDebt} className="rounded-full h-10 px-5 bg-[#17171d] hover:bg-[#26262f] gap-1.5">
-          <Plus className="h-4 w-4" />
-          {t("addDebt")}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <ColorSchemeToggle value={debtColorScheme} onChange={onSetDebtColorScheme} />
+          <Button onClick={onOpenAddDebt} className="rounded-full h-10 px-5 bg-[#17171d] hover:bg-[#26262f] gap-1.5">
+            <Plus className="h-4 w-4" />
+            {t("addDebt")}
+          </Button>
+        </div>
       </div>
 
       {debts.length > 0 && (
@@ -133,6 +165,37 @@ export function Debts({
           })}
         </div>
       )}
+
+      <Card className="rounded-2xl border-black/5 shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="font-semibold text-sm">{t("transactionLogTitle")}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("transactionLogSubtitle")}</p>
+            </div>
+            <Button
+              onClick={openAddPayment}
+              disabled={debts.length === 0}
+              variant="outline"
+              className="rounded-full h-9 text-xs gap-1.5"
+              style={{ borderColor: palette.accent, color: palette.accent }}
+            >
+              <ReceiptText className="h-3.5 w-3.5" />
+              {t("addPayment")}
+            </Button>
+          </div>
+          <TransactionLogTable payments={debtPayments} debts={debts} onEdit={openEditPayment} palette={palette} />
+        </CardContent>
+      </Card>
+
+      <TransactionLogFormModal
+        open={paymentModalOpen}
+        onOpenChange={setPaymentModalOpen}
+        onSave={onSaveDebtPayment}
+        onDelete={onDeleteDebtPayment}
+        initial={editingPayment}
+        debts={debts}
+      />
     </div>
   );
 }

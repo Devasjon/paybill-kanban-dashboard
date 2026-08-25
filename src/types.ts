@@ -92,6 +92,16 @@ export type DebtStrategy = "avalanche" | "snowball";
 
 export type Theme = "light" | "dark";
 
+export type DebtColorScheme = "pinkPurple" | "blueGreen";
+
+export interface DebtPayment {
+  id: string;
+  debtId: string;
+  date: string; // ISO yyyy-mm-dd
+  amount: number;
+  description?: string;
+}
+
 export interface AppData {
   bills: Bill[];
   debts: Debt[];
@@ -101,4 +111,6 @@ export interface AppData {
   notificationLog: NotificationLogEntry[];
   extraDebtPayment: number;
   notes: CalendarNote[];
+  debtColorScheme: DebtColorScheme;
+  debtPayments: DebtPayment[];
 }

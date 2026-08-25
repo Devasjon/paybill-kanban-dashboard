@@ -5,6 +5,8 @@ import type {
   Bill,
   CalendarNote,
   Debt,
+  DebtColorScheme,
+  DebtPayment,
   WhatsAppConfig,
   Lang,
   ScanConfig,
@@ -91,6 +93,9 @@ function AppShell() {
 
   const [extraDebtPayment, setExtraDebtPayment] = useState(0);
 
+  const [debtColorScheme, setDebtColorScheme] = useState<DebtColorScheme>("pinkPurple");
+  const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
+
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
@@ -146,6 +151,37 @@ function AppShell() {
 
   function handleDeleteDebt(debt: Debt) {
     setDebts((prev) => prev.filter((d) => d.id !== debt.id));
+    setDebtPayments((prev) => prev.filter((p) => p.debtId !== debt.id));
+  }
+
+  function adjustDebtBalance(debtId: string, delta: number) {
+    setDebts((prev) =>
+      prev.map((d) => (d.id === debtId ? { ...d, currentBalance: Math.max(0, d.currentBalance + delta) } : d))
+    );
+  }
+
+  function handleSaveDebtPayment(payment: DebtPayment) {
+    const existing = debtPayments.find((p) => p.id === payment.id);
+    if (existing) {
+      adjustDebtBalance(existing.debtId, existing.amount); // undo the old entry's effect
+      adjustDebtBalance(payment.debtId, -payment.amount); // apply the new entry's effect
+      setDebtPayments((prev) => prev.map((p) => (p.id === payment.id ? payment : p)));
+      toast.success(t("paymentUpdatedToast"));
+    } else {
+      adjustDebtBalance(payment.debtId, -payment.amount);
+      setDebtPayments((prev) => [...prev, payment]);
+      toast.success(t("paymentAddedToast"));
+    }
+  }
+
+  function handleDeleteDebtPayment(payment: DebtPayment) {
+    adjustDebtBalance(payment.debtId, payment.amount);
+    setDebtPayments((prev) => prev.filter((p) => p.id !== payment.id));
+    toast.success(t("paymentDeletedToast"));
+  }
+
+  function handleSetDebtColorScheme(scheme: DebtColorScheme) {
+    setDebtColorScheme(scheme);
   }
 
   function handleSaveNote(note: CalendarNote) {
@@ -176,6 +212,8 @@ function AppShell() {
     setNotificationLog(data.notificationLog ?? []);
     setNotes(data.notes ?? []);
     setExtraDebtPayment(data.extraDebtPayment ?? 0);
+    setDebtColorScheme(data.debtColorScheme ?? "pinkPurple");
+    setDebtPayments(data.debtPayments ?? []);
     if (data.lang) setLang(data.lang);
     if (data.theme) setTheme(data.theme);
     toast.success(t("dataImportedToast"));
@@ -219,7 +257,7 @@ function AppShell() {
 
   function handleSyncNow() {
     if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) return;
-    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme });
+    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
   }
 
   // When sync is turned on (or its URL/token change), pull whatever's already on the
@@ -251,12 +289,14 @@ function AppShell() {
           setNotificationLog(result.data.notificationLog ?? []);
           setNotes(result.data.notes ?? []);
           setExtraDebtPayment(result.data.extraDebtPayment ?? 0);
+          setDebtColorScheme(result.data.debtColorScheme ?? "pinkPurple");
+          setDebtPayments(result.data.debtPayments ?? []);
           if (result.data.lang) setLang(result.data.lang);
           if (result.data.theme) setTheme(result.data.theme);
           setSyncStatus("synced");
           setLastSyncedAt(result.updatedAt);
         } else {
-          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme });
+          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
           setSyncStatus("synced");
           setLastSyncedAt(new Date().toISOString());
         }
@@ -285,14 +325,14 @@ function AppShell() {
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme });
+      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
     }, 800);
 
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, debts, whatsapp, notificationLog, lang, notes, extraDebtPayment, theme]);
+  }, [bills, debts, whatsapp, notificationLog, lang, notes, extraDebtPayment, theme, debtColorScheme, debtPayments]);
 
   const debtRelatedPaidThisMonth = useMemo(() => {
     return bills
@@ -309,6 +349,8 @@ function AppShell() {
     notificationLog,
     extraDebtPayment,
     notes,
+    debtColorScheme,
+    debtPayments,
   };
 
   function openAddBill(dueDate?: string) {
@@ -387,6 +429,11 @@ function AppShell() {
               setDebtModalOpen(true);
             }}
             onDelete={handleDeleteDebt}
+            debtColorScheme={debtColorScheme}
+            onSetDebtColorScheme={handleSetDebtColorScheme}
+            debtPayments={debtPayments}
+            onSaveDebtPayment={handleSaveDebtPayment}
+            onDeleteDebtPayment={handleDeleteDebtPayment}
           />
         );
       case "analytics":
@@ -395,6 +442,8 @@ function AppShell() {
             debts={debts}
             extraDebtPayment={extraDebtPayment}
             onSetExtraDebtPayment={setExtraDebtPayment}
+            debtColorScheme={debtColorScheme}
+            onSetDebtColorScheme={handleSetDebtColorScheme}
           />
         );
       case "paymentMethods":

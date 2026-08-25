@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Debt, DebtStrategy } from "@/types";
+import type { Debt, DebtColorScheme, DebtStrategy } from "@/types";
 import { useI18n } from "@/lib/i18n";
 import { formatRM, formatRMShort } from "@/lib/bills";
 import { debtTypeLabelKey } from "@/lib/labels";
-import { simulatePayoff, estimateMinPayment } from "@/lib/debtPayoff";
+import { simulatePayoff, simulatePayoffSchedule, estimateMinPayment } from "@/lib/debtPayoff";
+import { debtColorSchemes } from "@/lib/debtColorSchemes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +12,12 @@ import { StatCard } from "@/components/StatCard";
 import { statCardPalette } from "@/lib/theme";
 import { Mountain, Snowflake, TrendingDown, AlertTriangle, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ColorSchemeToggle } from "@/components/debtDashboard/ColorSchemeToggle";
+import { DebtDashboardTiles } from "@/components/debtDashboard/DebtDashboardTiles";
+import { DebtDashboardCharts } from "@/components/debtDashboard/DebtDashboardCharts";
+import { PayoffScheduleTable } from "@/components/debtDashboard/PayoffScheduleTable";
 
-function monthsToDateLabel(months: number, lang: "en" | "ms"): string {
+export function monthsToDateLabel(months: number, lang: "en" | "ms"): string {
   const d = new Date();
   d.setMonth(d.getMonth() + months);
   return d.toLocaleDateString(lang === "ms" ? "ms-MY" : "en-GB", { month: "long", year: "numeric" });
@@ -22,14 +27,19 @@ export function Analytics({
   debts,
   extraDebtPayment,
   onSetExtraDebtPayment,
+  debtColorScheme,
+  onSetDebtColorScheme,
 }: {
   debts: Debt[];
   extraDebtPayment: number;
   onSetExtraDebtPayment: (n: number) => void;
+  debtColorScheme: DebtColorScheme;
+  onSetDebtColorScheme: (scheme: DebtColorScheme) => void;
 }) {
   const { t, lang } = useI18n();
   const [strategy, setStrategy] = useState<DebtStrategy>("avalanche");
   const [extraInput, setExtraInput] = useState(extraDebtPayment.toString());
+  const palette = debtColorSchemes[debtColorScheme];
 
   useEffect(() => {
     setExtraInput(extraDebtPayment.toString());
@@ -37,8 +47,8 @@ export function Analytics({
 
   const activeDebts = useMemo(() => debts.filter((d) => d.currentBalance > 0.01), [debts]);
 
-  const plan = useMemo(
-    () => simulatePayoff(activeDebts, strategy, extraDebtPayment),
+  const { plan, schedule } = useMemo(
+    () => simulatePayoffSchedule(activeDebts, strategy, extraDebtPayment),
     [activeDebts, strategy, extraDebtPayment]
   );
   const altStrategy: DebtStrategy = strategy === "avalanche" ? "snowball" : "avalanche";
@@ -138,6 +148,17 @@ export function Analytics({
               </CardContent>
             </Card>
           )}
+
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="font-semibold text-sm">{t("debtDashboardTitle")}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("debtDashboardSubtitle")}</p>
+            </div>
+            <ColorSchemeToggle value={debtColorScheme} onChange={onSetDebtColorScheme} />
+          </div>
+
+          <DebtDashboardTiles debts={activeDebts} plan={plan} palette={palette} lang={lang} />
+          <DebtDashboardCharts debts={activeDebts} schedule={schedule} palette={palette} lang={lang} />
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <StatCard
@@ -271,6 +292,8 @@ export function Analytics({
               )}
             </CardContent>
           </Card>
+
+          <PayoffScheduleTable plan={plan} schedule={schedule} palette={palette} lang={lang} />
         </>
       )}
     </div>
