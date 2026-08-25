@@ -14,11 +14,14 @@ export interface PayoffPlan {
 /**
  * Falls back to an estimated minimum payment when a debt doesn't have one
  * set (minPayment is optional on Debt) — 2% of the current balance, floored
- * at RM20, matching a typical card-issuer minimum. Debts with an explicit
- * minPayment always use that instead.
+ * at RM20, matching a typical card-issuer minimum. Any explicitly-entered
+ * minPayment is always used instead, INCLUDING an explicit 0 (e.g. a
+ * 0%-interest installment plan with no required minimum) — treating 0 the
+ * same as "not set" would silently override what the user actually entered
+ * on the debt, throwing off the payoff plan's monthly budget.
  */
 export function estimateMinPayment(debt: Debt): number {
-  if (debt.minPayment !== undefined && debt.minPayment > 0) return debt.minPayment;
+  if (debt.minPayment !== undefined) return debt.minPayment;
   return Math.min(debt.currentBalance, Math.max(debt.currentBalance * 0.02, 20));
 }
 

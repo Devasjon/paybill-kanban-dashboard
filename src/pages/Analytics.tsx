@@ -182,7 +182,7 @@ export function Analytics({
                 {plan.order.map((debt, i) => {
                   const month = plan.payoffMonth[debt.id];
                   const minPay = estimateMinPayment(debt);
-                  const isEstimated = debt.minPayment === undefined || debt.minPayment <= 0;
+                  const isEstimated = debt.minPayment === undefined;
                   return (
                     <div key={debt.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                       <span
