@@ -1,6 +1,8 @@
 import type { Bill, Lang, NotificationEvent, NotificationLogEntry, WhatsAppConfig } from "@/types";
 import { formatRM } from "@/lib/bills";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
+
 const messageTemplates: Record<NotificationEvent, Record<Lang, (bill: Bill) => string>> = {
   billAdded: {
     en: (b) => `New bill added: ${b.name} (${formatRM(b.amount)}), due ${b.dueDate}. You'll get a reminder before it's due.`,
@@ -29,16 +31,18 @@ export function buildWhatsAppMessage(event: NotificationEvent, bill: Bill, lang:
  *
  * IMPORTANT: this never calls WasenderAPI directly from the browser — the
  * Session API Key is a secret and must live server-side. Instead this posts
- * to a small backend endpoint the user deploys themselves (see the companion
- * `wasender-backend` snippet). If no backend URL is configured, the
- * notification is logged as "skipped" so the trigger logic is still fully
- * visible/testable without a live backend.
+ * to the companion Laravel backend's /api/send-whatsapp endpoint (see
+ * wasender-backend-laravel/app/Http/Controllers/Api/SendWhatsAppController.php),
+ * authenticated with the logged-in user's session token. If notifications
+ * aren't enabled, the notification is logged as "skipped" so the trigger
+ * logic is still fully visible/testable.
  */
 export async function sendWhatsAppNotification(
   event: NotificationEvent,
   bill: Bill,
   config: WhatsAppConfig,
-  lang: Lang
+  lang: Lang,
+  token: string
 ): Promise<NotificationLogEntry> {
   const message = buildWhatsAppMessage(event, bill, lang);
   const to = bill.whatsappNumber || config.defaultNumber;
@@ -51,22 +55,18 @@ export async function sendWhatsAppNotification(
     to,
   };
 
-  if (!config.enabled || !config.backendUrl || !to) {
+  if (!config.enabled || !to) {
     return {
       ...base,
       status: "skipped_no_backend",
-      detail: !config.enabled
-        ? "WhatsApp notifications disabled in Settings"
-        : !to
-        ? "No WhatsApp number configured"
-        : "No backend URL configured in Settings",
+      detail: !config.enabled ? "WhatsApp notifications disabled in Settings" : "No WhatsApp number configured",
     };
   }
 
   try {
-    const res = await fetch(config.backendUrl, {
+    const res = await fetch(`${API_BASE}/api/send-whatsapp`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ to, text: message, event, billName: bill.name }),
     });
     if (!res.ok) {

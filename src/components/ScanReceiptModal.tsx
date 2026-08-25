@@ -32,7 +32,7 @@ export function ScanReceiptModal({
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const configured = scanConfig.enabled && !!scanConfig.url && !!token;
+  const configured = scanConfig.enabled && !!token;
   const isPdf = file?.type === "application/pdf";
 
   function reset() {
@@ -74,7 +74,7 @@ export function ScanReceiptModal({
     setScanning(true);
     setError(null);
     try {
-      const result = await scanReceipt(file, scanConfig, token);
+      const result = await scanReceipt(file, token);
       onScanned(result);
       handleClose(false);
     } catch (err) {

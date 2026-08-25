@@ -27,6 +27,22 @@ export function debtTypeLabelKey(t: DebtType): string {
   return debtTypeKeyMap[t];
 }
 
+// Used for the auto-generated minimum-payment bill (see App.tsx's
+// syncDebtMinPaymentBill) — picks the closest existing Bill category since
+// BillCategory doesn't distinguish between loan types the way DebtType does.
+const debtTypeToBillCategoryMap: Record<DebtType, BillCategory> = {
+  creditCard: "creditCard",
+  studyLoan: "loan",
+  personalLoan: "loan",
+  carLoan: "loan",
+  housingLoan: "loan",
+  other: "other",
+};
+
+export function debtTypeToBillCategory(t: DebtType): BillCategory {
+  return debtTypeToBillCategoryMap[t];
+}
+
 export const CATEGORY_ORDER: BillCategory[] = [
   "utilities",
   "housing",

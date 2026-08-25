@@ -1,17 +1,15 @@
-import type { AppData, SyncConfig } from "@/types";
+import type { AppData } from "@/types";
 
 /**
  * Cloud sync against the companion Laravel backend's /api/state endpoint
  * (see wasender-backend-laravel/app/Http/Controllers/Api/AppStateController.php).
  *
- * The sync config itself (url/token) is deliberately NOT part of the synced
- * AppData blob — it has to be entered manually on each device first (you
- * need to know where to fetch from before you can fetch anything), so it
- * stays local to each device/browser, same as before for WhatsApp settings.
- *
- * Like whatsapp.ts, this never assumes a specific backend is deployed: if
- * sync isn't enabled/configured, callers should just skip calling these.
+ * Every logged-in user shares the one backend at VITE_API_BASE_URL,
+ * authenticated with their own session token — there's no per-user URL to
+ * configure (see src/lib/auth.ts for where that token comes from).
  */
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
 
 export type CloudState = Omit<AppData, "lang"> & { lang?: AppData["lang"] };
 
@@ -20,10 +18,10 @@ interface FetchStateResult {
   updatedAt: string | null;
 }
 
-export async function fetchCloudState(config: SyncConfig): Promise<FetchStateResult> {
-  const res = await fetch(config.url, {
+export async function fetchCloudState(token: string): Promise<FetchStateResult> {
+  const res = await fetch(`${API_BASE}/api/state`, {
     method: "GET",
-    headers: { Authorization: `Bearer ${config.token}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
 
   if (!res.ok) {
@@ -34,11 +32,11 @@ export async function fetchCloudState(config: SyncConfig): Promise<FetchStateRes
   return (await res.json()) as FetchStateResult;
 }
 
-export async function pushCloudState(config: SyncConfig, data: CloudState): Promise<string | null> {
-  const res = await fetch(config.url, {
+export async function pushCloudState(token: string, data: CloudState): Promise<string | null> {
+  const res = await fetch(`${API_BASE}/api/state`, {
     method: "PUT",
     headers: {
-      Authorization: `Bearer ${config.token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ data }),

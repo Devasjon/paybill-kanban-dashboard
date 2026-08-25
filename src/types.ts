@@ -1,5 +1,11 @@
 export type Lang = "en" | "ms";
 
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+}
+
 export type BillCategory =
   | "utilities"
   | "housing"
@@ -20,6 +26,11 @@ export interface Bill {
   recurring: boolean;
   paid: boolean;
   whatsappNumber?: string;
+  // Set only on the auto-generated monthly minimum-payment bill for a Debt
+  // (see App.tsx's syncDebtMinPaymentBill) — links this Bill back to the
+  // Debt it was generated from, so paying it here can reduce that Debt's
+  // balance too, and so debt edits keep the bill's amount in sync.
+  debtId?: string;
 }
 
 export type DebtType =
@@ -38,6 +49,11 @@ export interface Debt {
   currentBalance: number;
   apr?: number;
   minPayment?: number;
+  // Credit card balance transfer package details (type === "creditCard" only).
+  isBalanceTransfer?: boolean;
+  balanceTransferMonths?: number;
+  balanceTransferAmount?: number; // baki balance transfer
+  balanceTransferEndDate?: string; // ISO yyyy-mm-dd — bila tamat pakej
 }
 
 export type NotificationEvent = "billAdded" | "billDueSoon" | "billOverdue" | "billPaid";
@@ -54,24 +70,19 @@ export interface NotificationLogEntry {
 }
 
 export interface WhatsAppConfig {
-  backendUrl: string; // e.g. https://your-deploy.vercel.app/api/send-whatsapp
   defaultNumber: string; // E.164
   enabled: boolean;
-}
-
-export interface SyncConfig {
-  url: string; // e.g. https://your-domain.com/api/state
-  token: string; // bearer token, matches APP_ACCESS_TOKEN on the backend
-  enabled: boolean;
+  // No backendUrl field — every logged-in user shares the one backend at
+  // VITE_API_BASE_URL, authenticated with their own session token (see
+  // src/lib/whatsapp.ts).
 }
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
 export interface ScanConfig {
-  url: string; // e.g. https://your-domain.com/api/scan-receipt
   enabled: boolean;
-  // No separate token field — reuses SyncConfig.token (the same
-  // APP_ACCESS_TOKEN both endpoints are protected by on the backend).
+  // No url/token fields — same reasoning as WhatsAppConfig above (see
+  // src/lib/receiptScan.ts).
 }
 
 export interface ScannedReceipt {

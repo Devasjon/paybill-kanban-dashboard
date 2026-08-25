@@ -43,7 +43,14 @@ export function BillRow({
         <Icon className="h-4 w-4" strokeWidth={2.25} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate">{bill.name}</p>
+        <p className="text-sm font-medium truncate">
+          {bill.name}
+          {bill.debtId && (
+            <span className="ml-1.5 align-middle text-[10px] font-medium text-muted-foreground">
+              · {t("linkedToDebtBadge")}
+            </span>
+          )}
+        </p>
         <p className="text-xs text-muted-foreground truncate">
           {t(categoryLabelKey(bill.category))} · {t("billDueOn", { date: formatDate(bill.dueDate, lang) })}
         </p>

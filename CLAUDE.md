@@ -25,12 +25,38 @@ This produces `bundle.html` at the project root. It has been verified to
 open standalone via `file://` with zero console errors (tested with
 Playwright across desktop/tablet/phone viewports).
 
+## Auth (gates the whole app — see `wasender-backend-laravel/CLAUDE.md` for the backend half)
+
+- `src/App.tsx` — `App()` renders `AuthGate`, not `AppShell`, directly.
+  `AuthGate` validates any stored session token on mount
+  (`getStoredToken()` + `fetchMe()`) before deciding whether to render
+  `AuthFlow` (logged out) or `AppShell` (logged in, receives `user`/`token`/
+  `onLogout` props). There is no anonymous/local-only mode — every page
+  requires a real account.
+- `src/lib/auth.ts` — talks to the backend's `/api/auth/*` endpoints (plain
+  `fetch`, same style as `cloudSync.ts`). Also owns the session token's
+  `localStorage` read/write/clear (`paybill_auth_token`) — see the
+  `storage.ts` note below for why this is a deliberate exception.
+- `src/components/auth/` (`AuthLayout`, `AuthFlow`, `LanguageToggle`,
+  `OtpCodeInput`) + `src/pages/auth/` (`Login`, `Register`, `OtpVerify`,
+  `ForgotPassword`, `ResetPassword`) — the two-panel login/register/OTP/
+  reset screens. `AuthFlow` is a local `useState`-driven screen switch,
+  matching `App.tsx`'s own `Page`-string-switch style — there's no router.
+- Every backend call that used to carry a shared `SyncConfig`/`ScanConfig`
+  URL+token now just sends the logged-in user's session token as a Bearer
+  header, with the base URL coming from `VITE_API_BASE_URL` (see
+  `.env.example`) — one backend, one token per user, nothing left to
+  configure manually. `WhatsAppConfig`/`ScanConfig` lost their
+  `backendUrl`/`url` fields accordingly; see `src/lib/whatsapp.ts`,
+  `src/lib/cloudSync.ts`, `src/lib/receiptScan.ts`.
+
 ## Architecture
 
-- `src/App.tsx` — root component. Owns all state (bills, debts, WhatsApp
-  config, notification log), wraps everything in `I18nProvider`, renders
-  `Sidebar` + `Topbar` + the active page, and wires every mutation handler
-  (`onSaveBill`, `onMarkPaid`, `onKanbanChange`, etc.) to also call
+- `src/App.tsx` — `AppShell` (rendered post-login) owns all state (bills,
+  debts, WhatsApp config, notification log), wraps everything in
+  `I18nProvider` (via the parent `App()`), renders `Sidebar` + `Topbar` +
+  the active page, and wires every mutation handler (`onSaveBill`,
+  `onMarkPaid`, `onKanbanChange`, etc.) to also call
   `sendWhatsAppNotification()` where relevant. Exports `type Page` which
   `Sidebar.tsx` imports.
 - `src/pages/` — `Dashboard.tsx`, `AllBills.tsx` (list + Kanban toggle),
@@ -54,11 +80,15 @@ Playwright across desktop/tablet/phone viewports).
   Key is a secret and must live server-side. See the companion backend
   project (`wasender-backend-laravel/`, sibling folder / separate repo) for
   the server half of this.
-- `src/lib/storage.ts` — explicit JSON export/import. **No localStorage or
-  sessionStorage anywhere in this app by design** — it was originally built
-  to run as a Claude-rendered sandboxed artifact where those APIs aren't
-  available. If you add persistence later (e.g. a real backend + database),
-  this is the file to replace.
+- `src/lib/storage.ts` — explicit JSON export/import, still the only way to
+  get a full backup or move data outside of Cloud Sync. The original
+  "no localStorage anywhere" rule (this app was built to run as a
+  Claude-rendered sandboxed artifact where those APIs aren't available) no
+  longer holds absolutely: `src/lib/auth.ts` now stores the session token in
+  `localStorage` (key `paybill_auth_token`), a deliberate exception now that
+  this is a real deployed site with a real, revocable, expiring token — not
+  the sandboxed context the original rule was written for. Nothing else
+  should use localStorage/sessionStorage without the same justification.
 - `src/lib/theme.ts` — color tokens matching the source screenshots:
   `sidebarBg`, `brandPurple`, `categoryTheme`, `statusTheme`,
   `statCardPalette` (4-slot fixed order: lavender/peach/lime/sky).
@@ -94,15 +124,11 @@ Playwright across desktop/tablet/phone viewports).
 
 ## Not yet built
 
-- Analytics page (real charts/insights) — currently a placeholder.
 - Payment Methods page — currently a placeholder.
-- Any real backend/database — this is a frontend-only app; all state is
-  in-memory + explicit JSON export/import. Multi-device sync would need a
-  real backend.
 
 ## Related project
 
 `wasender-backend-laravel/` (delivered separately, own git history) is the
-Laravel API that receives the POST from `sendWhatsAppNotification()` and
-forwards it to WasenderAPI with the Session API Key kept server-side, meant
-to be deployed via Laravel Forge. See its own `CLAUDE.md` / `README.md`.
+Laravel API backing this app — real per-user accounts (Sanctum + email OTP
+via Resend), WhatsApp sends, cloud sync, receipt scanning, and automatic
+daily bill reminders. See its own `CLAUDE.md` / `README.md`.

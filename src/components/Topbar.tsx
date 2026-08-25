@@ -1,6 +1,7 @@
 import { Search, Menu, Sun, Moon } from "lucide-react";
-import type { NotificationLogEntry, Theme } from "@/types";
+import type { AuthUser, NotificationLogEntry, Theme } from "@/types";
 import { useI18n } from "@/lib/i18n";
+import { userInitials } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { WhatsNewButton } from "@/components/WhatsNewButton";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -23,6 +24,7 @@ export function Topbar({
   theme,
   onToggleTheme,
   notificationLog,
+  user,
 }: {
   page: string;
   search: string;
@@ -31,6 +33,7 @@ export function Topbar({
   theme: Theme;
   onToggleTheme: () => void;
   notificationLog: NotificationLogEntry[];
+  user: AuthUser;
 }) {
   const { t } = useI18n();
 
@@ -70,8 +73,9 @@ export function Topbar({
         <div
           className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0 ml-1"
           style={{ background: "linear-gradient(135deg, #a78bfa, #f472b6)" }}
+          title={user.name}
         >
-          GA
+          {userInitials(user.name)}
         </div>
       </div>
     </div>

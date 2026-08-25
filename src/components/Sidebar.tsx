@@ -7,11 +7,14 @@ import {
   Wallet,
   Settings,
   Sparkles,
+  LogOut,
   X,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { sidebarBg, sidebarActiveBg, sidebarBorder, brandPurple } from "@/lib/theme";
+import { userInitials } from "@/lib/utils";
+import type { AuthUser } from "@/types";
 import type { Page } from "@/App";
 
 const NAV_WORKSPACE: { page: Page; icon: typeof LayoutDashboard; labelKey: string }[] = [
@@ -32,11 +35,15 @@ export function Sidebar({
   setPage,
   mobileOpen,
   onCloseMobile,
+  user,
+  onLogout,
 }: {
   page: Page;
   setPage: (p: Page) => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  user: AuthUser;
+  onLogout: () => void;
 }) {
   const { t } = useI18n();
 
@@ -120,12 +127,21 @@ export function Sidebar({
             className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
             style={{ background: "linear-gradient(135deg, #a78bfa, #f472b6)" }}
           >
-            GA
+            {userInitials(user.name)}
           </div>
-          <div className="min-w-0">
-            <p className="text-white text-sm font-medium truncate">Gaya Avasi</p>
-            <p className="text-white/40 text-xs truncate">{t("personalAccount")}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-white text-sm font-medium truncate">{user.name}</p>
+            <p className="text-white/40 text-xs truncate">{user.email}</p>
           </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/5 shrink-0"
+            aria-label={t("authLogout")}
+            title={t("authLogout")}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 pt-4">

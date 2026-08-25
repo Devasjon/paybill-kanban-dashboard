@@ -5,9 +5,11 @@ import { debtPaidOffPercent, totalDebtSummary } from "@/lib/debts";
 import { formatRM, formatRMShort } from "@/lib/bills";
 import { debtTypeLabelKey } from "@/lib/labels";
 import { debtColorSchemes } from "@/lib/debtColorSchemes";
+import { formatDate } from "@/lib/bills";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Landmark, ReceiptText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pencil, Trash2, Landmark, ReceiptText, ArrowLeftRight } from "lucide-react";
 import { ColorSchemeToggle } from "@/components/debtDashboard/ColorSchemeToggle";
 import { TransactionLogTable } from "@/components/debtDashboard/TransactionLogTable";
 import { TransactionLogFormModal } from "@/components/debtDashboard/TransactionLogFormModal";
@@ -33,7 +35,7 @@ export function Debts({
   onSaveDebtPayment: (payment: DebtPayment) => void;
   onDeleteDebtPayment: (payment: DebtPayment) => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const summary = totalDebtSummary(debts);
   const palette = debtColorSchemes[debtColorScheme];
 
@@ -157,6 +159,28 @@ export function Debts({
                           <p className="text-xs font-semibold">{formatRM(debt.minPayment)}</p>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {debt.isBalanceTransfer && (
+                    <div className="mt-3 pt-3 border-t border-black/5 space-y-1.5">
+                      <Badge className="text-[10px] font-medium border-none bg-[#FEF3C7] text-[#92600B] gap-1">
+                        <ArrowLeftRight className="h-3 w-3" />
+                        {t("balanceTransferBadge")}
+                      </Badge>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                        {debt.balanceTransferAmount !== undefined && (
+                          <span>{t("balanceTransferAmountLabel", { amount: formatRM(debt.balanceTransferAmount) })}</span>
+                        )}
+                        {debt.balanceTransferMonths !== undefined && (
+                          <span>{t("balanceTransferMonthsLabel", { n: debt.balanceTransferMonths })}</span>
+                        )}
+                        {debt.balanceTransferEndDate && (
+                          <span>
+                            {t("balanceTransferEndsLabel", { date: formatDate(debt.balanceTransferEndDate, lang) })}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>

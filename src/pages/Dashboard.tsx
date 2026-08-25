@@ -21,6 +21,7 @@ export function Dashboard({
   onGoToCalendar,
   debtDeltaThisMonth,
   paidDebtThisMonth,
+  userName,
 }: {
   bills: Bill[];
   debts: Debt[];
@@ -31,6 +32,7 @@ export function Dashboard({
   onGoToCalendar: () => void;
   debtDeltaThisMonth: number;
   paidDebtThisMonth: number;
+  userName: string;
 }) {
   const { t } = useI18n();
 
@@ -59,7 +61,7 @@ export function Dashboard({
         <div>
           <p className="text-[11px] font-medium tracking-wide text-muted-foreground">{dateLine}</p>
           <h2 className="text-2xl font-bold mt-1">
-            {t(greetingKey)}, Gaya <span aria-hidden>👋</span>
+            {t(greetingKey)}, {userName.split(" ")[0]} <span aria-hidden>👋</span>
           </h2>
           <p className="text-sm text-muted-foreground mt-1">{t("dashboardSubtitle")}</p>
         </div>

@@ -2,24 +2,26 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type {
   AppData,
+  AuthUser,
   Bill,
   CalendarNote,
   Debt,
   DebtColorScheme,
   DebtPayment,
   WhatsAppConfig,
-  Lang,
   ScanConfig,
   ScannedReceipt,
-  SyncConfig,
   SyncStatus,
   Theme,
 } from "@/types";
 import { I18nProvider, useI18n } from "@/lib/i18n";
-import { billStatus } from "@/lib/bills";
+import { billStatus, nextMonthDate } from "@/lib/bills";
+import { debtTypeToBillCategory } from "@/lib/labels";
 import { sampleBills, sampleDebts } from "@/lib/sampleData";
 import { sendWhatsAppNotification } from "@/lib/whatsapp";
 import { fetchCloudState, pushCloudState, type CloudState } from "@/lib/cloudSync";
+import { getStoredToken, storeToken, clearStoredToken, fetchMe, logout as apiLogout } from "@/lib/auth";
+import { AuthFlow } from "@/components/auth/AuthFlow";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 import { Dashboard } from "@/pages/Dashboard";
@@ -34,6 +36,7 @@ import { ScanReceiptModal } from "@/components/ScanReceiptModal";
 import { NoteFormModal } from "@/components/NoteFormModal";
 import { Toaster } from "@/components/ui/sonner";
 import { Card, CardContent } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 export type Page = "dashboard" | "bills" | "calendar" | "debts" | "analytics" | "paymentMethods" | "settings";
 
@@ -54,25 +57,20 @@ function ComingSoonPage({ titleKey, subtitleKey }: { titleKey: string; subtitleK
   );
 }
 
-function AppShell() {
+function AppShell({ user, token, onLogout }: { user: AuthUser; token: string; onLogout: () => void }) {
   const { t, lang, setLang } = useI18n();
 
   const [bills, setBills] = useState<Bill[]>(() => sampleBills());
   const [debts, setDebts] = useState<Debt[]>(() => sampleDebts());
-  const [whatsapp, setWhatsapp] = useState<WhatsAppConfig>({
-    backendUrl: "",
-    defaultNumber: "",
-    enabled: false,
-  });
+  const [whatsapp, setWhatsapp] = useState<WhatsAppConfig>({ defaultNumber: "", enabled: false });
   const [notificationLog, setNotificationLog] = useState<AppData["notificationLog"]>([]);
 
-  const [syncConfig, setSyncConfig] = useState<SyncConfig>({ url: "", token: "", enabled: false });
-  const [scanConfig, setScanConfig] = useState<ScanConfig>({ url: "", enabled: false });
+  const [scanConfig, setScanConfig] = useState<ScanConfig>({ enabled: false });
   const [scanModalOpen, setScanModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
-  // True once the initial pull-or-seed for the *current* sync config has finished —
-  // guards against the auto-push effect firing before we know whether to pull or push first.
+  // True once the initial pull-or-seed has finished — guards against the
+  // auto-push effect firing before we know whether to pull or push first.
   const syncReadyRef = useRef(false);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -107,7 +105,7 @@ function AppShell() {
   }
 
   async function fireNotification(event: Parameters<typeof sendWhatsAppNotification>[0], bill: Bill) {
-    const entry = await sendWhatsAppNotification(event, bill, whatsapp, lang);
+    const entry = await sendWhatsAppNotification(event, bill, whatsapp, lang, token);
     setNotificationLog((prev) => [...prev, entry]);
   }
 
@@ -124,6 +122,7 @@ function AppShell() {
     setBills((prev) => prev.map((b) => (b.id === bill.id ? updated : b)));
     toast.success(t("markPaidToast", { name: bill.name }));
     fireNotification("billPaid", updated);
+    applyDebtBillPayment(updated);
   }
 
   function handleDeleteBill(bill: Bill) {
@@ -138,6 +137,7 @@ function AppShell() {
     if (newStatus === "paid") {
       toast.success(t("markPaidToast", { name: bill.name }));
       fireNotification("billPaid", bill);
+      applyDebtBillPayment(bill);
     }
   }
 
@@ -147,17 +147,88 @@ function AppShell() {
       return exists ? prev.map((d) => (d.id === debt.id ? debt : d)) : [...prev, debt];
     });
     setEditingDebt(null);
+    syncDebtMinPaymentBill(debt);
   }
 
   function handleDeleteDebt(debt: Debt) {
     setDebts((prev) => prev.filter((d) => d.id !== debt.id));
     setDebtPayments((prev) => prev.filter((p) => p.debtId !== debt.id));
+    setBills((prev) => prev.filter((b) => !(b.debtId === debt.id && !b.paid)));
   }
 
   function adjustDebtBalance(debtId: string, delta: number) {
     setDebts((prev) =>
       prev.map((d) => (d.id === debtId ? { ...d, currentBalance: Math.max(0, d.currentBalance + delta) } : d))
     );
+  }
+
+  // Keeps an auto-generated recurring Bill in sync with a Debt's minimum
+  // payment, so it shows up in All Bills / counts toward Dashboard's
+  // unpaid total — see types.ts's Bill.debtId doc comment.
+  function syncDebtMinPaymentBill(debt: Debt) {
+    setBills((prev) => {
+      const existingUnpaid = prev.find((b) => b.debtId === debt.id && !b.paid);
+
+      if (!debt.minPayment) {
+        return existingUnpaid ? prev.filter((b) => b.id !== existingUnpaid.id) : prev;
+      }
+
+      if (existingUnpaid) {
+        return prev.map((b) =>
+          b.id === existingUnpaid.id
+            ? { ...b, name: debt.name, amount: debt.minPayment!, category: debtTypeToBillCategory(debt.type) }
+            : b
+        );
+      }
+
+      return [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          name: debt.name,
+          amount: debt.minPayment,
+          dueDate: nextMonthDate(new Date().toISOString().slice(0, 10)),
+          category: debtTypeToBillCategory(debt.type),
+          recurring: true,
+          paid: false,
+          debtId: debt.id,
+        },
+      ];
+    });
+  }
+
+  // When a Bill linked to a Debt (see Bill.debtId) is marked paid, reduce
+  // that Debt's balance and log it in the Transaction Log too — same effect
+  // as logging a payment directly from My Debts — then roll the recurring
+  // bill forward to next month so it keeps showing up.
+  function applyDebtBillPayment(bill: Bill) {
+    if (!bill.debtId) return;
+    if (!debts.some((d) => d.id === bill.debtId)) return;
+
+    adjustDebtBalance(bill.debtId, -bill.amount);
+    setDebtPayments((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        debtId: bill.debtId!,
+        date: new Date().toISOString().slice(0, 10),
+        amount: bill.amount,
+        description: t("debtPaymentFromBillDesc"),
+      },
+    ]);
+    setBills((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: bill.name,
+        amount: bill.amount,
+        dueDate: nextMonthDate(bill.dueDate),
+        category: bill.category,
+        recurring: true,
+        paid: false,
+        debtId: bill.debtId,
+      },
+    ]);
   }
 
   function handleSaveDebtPayment(payment: DebtPayment) {
@@ -201,10 +272,6 @@ function AppShell() {
     toast.success(t("settingsSavedToast"));
   }
 
-  function handleSetLang(l: Lang) {
-    setLang(l);
-  }
-
   function handleImport(data: AppData) {
     setBills(data.bills);
     setDebts(data.debts);
@@ -217,11 +284,6 @@ function AppShell() {
     if (data.lang) setLang(data.lang);
     if (data.theme) setTheme(data.theme);
     toast.success(t("dataImportedToast"));
-  }
-
-  function handleSaveSyncConfig(config: SyncConfig) {
-    setSyncConfig(config);
-    toast.success(t("settingsSavedToast"));
   }
 
   function handleSaveScanConfig(config: ScanConfig) {
@@ -243,10 +305,10 @@ function AppShell() {
     toast.success(t("scanSuccessToast"));
   }
 
-  async function pushToCloud(config: SyncConfig, snapshot: CloudState) {
+  async function pushToCloud(snapshot: CloudState) {
     setSyncStatus("syncing");
     try {
-      const updatedAt = await pushCloudState(config, snapshot);
+      const updatedAt = await pushCloudState(token, snapshot);
       setSyncStatus("synced");
       setLastSyncedAt(updatedAt ?? new Date().toISOString());
     } catch {
@@ -256,31 +318,20 @@ function AppShell() {
   }
 
   function handleSyncNow() {
-    if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) return;
-    pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
+    pushToCloud({ bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
   }
 
-  // When sync is turned on (or its URL/token change), pull whatever's already on the
-  // server first. If nothing's been synced yet, seed the server with what's on this
-  // device instead — either way, this device and the server agree before we start
-  // auto-pushing local edits below.
+  // On mount, pull whatever's already synced for this user. If nothing's
+  // been synced yet, seed the server with what's on this device instead —
+  // either way, this device and the server agree before auto-push (below)
+  // starts sending local edits. Sync is always on for a logged-in user —
+  // one backend, one token, nothing to configure.
   useEffect(() => {
-    syncReadyRef.current = false;
-    if (syncTimerRef.current) {
-      clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = null;
-    }
-
-    if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) {
-      setSyncStatus("idle");
-      return;
-    }
-
     let cancelled = false;
     (async () => {
       setSyncStatus("syncing");
       try {
-        const result = await fetchCloudState(syncConfig);
+        const result = await fetchCloudState(token);
         if (cancelled) return;
         if (result.data) {
           setBills(result.data.bills ?? []);
@@ -296,7 +347,7 @@ function AppShell() {
           setSyncStatus("synced");
           setLastSyncedAt(result.updatedAt);
         } else {
-          await pushCloudState(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
+          await pushCloudState(token, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
           setSyncStatus("synced");
           setLastSyncedAt(new Date().toISOString());
         }
@@ -312,20 +363,19 @@ function AppShell() {
     return () => {
       cancelled = true;
     };
-    // Deliberately only re-runs when the sync target itself changes, not on every
-    // bill/debt edit — those are picked up by the auto-push effect below.
+    // Runs once per session (token is stable for AppShell's lifetime) — not
+    // on every bill/debt edit, those are picked up by the auto-push effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncConfig.enabled, syncConfig.url, syncConfig.token]);
+  }, [token]);
 
   // Auto-push local changes to the cloud (debounced) once the initial pull/seed above
   // has settled, so every device that's online converges on the same data.
   useEffect(() => {
-    if (!syncConfig.enabled || !syncConfig.url || !syncConfig.token) return;
     if (!syncReadyRef.current) return;
 
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      pushToCloud(syncConfig, { bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
+      pushToCloud({ bills, debts, whatsapp, notificationLog, extraDebtPayment, lang, notes, theme, debtColorScheme, debtPayments });
     }, 800);
 
     return () => {
@@ -334,11 +384,18 @@ function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bills, debts, whatsapp, notificationLog, lang, notes, extraDebtPayment, theme, debtColorScheme, debtPayments]);
 
+  // Drives Dashboard's "Total Overall Debt" delta and DebtProgressPanel's
+  // "paid this month" callout — must reflect every way a debt balance can
+  // go down this month: payments logged directly in My Debts, and paying a
+  // debt-linked bill in All Bills (see applyDebtBillPayment above, which
+  // logs a DebtPayment for that path too). Previously this only looked at
+  // paid Bills in the loan/creditCard categories, so My Debts activity
+  // never showed up here — that's the "tidak sync" bug.
   const debtRelatedPaidThisMonth = useMemo(() => {
-    return bills
-      .filter((b) => b.paid && (b.category === "loan" || b.category === "creditCard"))
-      .reduce((sum, b) => sum + b.amount, 0);
-  }, [bills]);
+    const now = new Date();
+    const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return debtPayments.filter((p) => p.date.startsWith(yearMonth)).reduce((sum, p) => sum + p.amount, 0);
+  }, [debtPayments]);
 
   const appData: AppData = {
     bills,
@@ -391,6 +448,7 @@ function AppShell() {
             onGoToCalendar={() => setPage("calendar")}
             debtDeltaThisMonth={debtRelatedPaidThisMonth}
             paidDebtThisMonth={debtRelatedPaidThisMonth}
+            userName={user.name}
           />
         );
       case "bills":
@@ -453,12 +511,9 @@ function AppShell() {
           <Settings
             data={appData}
             onSaveWhatsapp={handleSaveWhatsapp}
-            onSetLang={handleSetLang}
             onImport={handleImport}
-            syncConfig={syncConfig}
             syncStatus={syncStatus}
             lastSyncedAt={lastSyncedAt}
-            onSaveSyncConfig={handleSaveSyncConfig}
             onSyncNow={handleSyncNow}
             scanConfig={scanConfig}
             onSaveScanConfig={handleSaveScanConfig}
@@ -471,7 +526,14 @@ function AppShell() {
 
   return (
     <div className="min-h-screen flex bg-[#f6f6f4] dark:bg-background">
-      <Sidebar page={page} setPage={setPage} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
+      <Sidebar
+        page={page}
+        setPage={setPage}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+        user={user}
+        onLogout={onLogout}
+      />
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar
           page={page}
@@ -481,6 +543,7 @@ function AppShell() {
           theme={theme}
           onToggleTheme={handleToggleTheme}
           notificationLog={notificationLog}
+          user={user}
         />
         <main className="flex-1 p-4 sm:p-6">{renderPage()}</main>
       </div>
@@ -510,7 +573,7 @@ function AppShell() {
         open={scanModalOpen}
         onOpenChange={setScanModalOpen}
         scanConfig={scanConfig}
-        token={syncConfig.token}
+        token={token}
         onScanned={handleReceiptScanned}
         onGoToSettings={() => setPage("settings")}
       />
@@ -519,10 +582,82 @@ function AppShell() {
   );
 }
 
+type AuthStatus = "loading" | "unauthenticated" | "authenticated";
+
+/**
+ * Gates the entire app behind login: on mount, validates any stored session
+ * token (src/lib/auth.ts) before rendering AppShell; otherwise renders the
+ * auth screens (AuthFlow). The whole app requires an account — there's no
+ * anonymous/local-only mode anymore.
+ */
+function AuthGate() {
+  const { t } = useI18n();
+  const [status, setStatus] = useState<AuthStatus>("loading");
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    const stored = getStoredToken();
+    if (!stored) {
+      setStatus("unauthenticated");
+      return;
+    }
+    fetchMe(stored)
+      .then((u) => {
+        setToken(stored);
+        setUser(u);
+        setStatus("authenticated");
+      })
+      .catch(() => {
+        clearStoredToken();
+        setStatus("unauthenticated");
+      });
+  }, []);
+
+  function handleAuthenticated(newToken: string, newUser: AuthUser) {
+    storeToken(newToken);
+    setToken(newToken);
+    setUser(newUser);
+    setStatus("authenticated");
+  }
+
+  function handleLogout() {
+    if (token) apiLogout(token).catch(() => {});
+    clearStoredToken();
+    setToken(null);
+    setUser(null);
+    setStatus("unauthenticated");
+  }
+
+  if (!import.meta.env.VITE_API_BASE_URL) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center">
+        <p className="text-sm text-muted-foreground max-w-sm">
+          VITE_API_BASE_URL is not configured — see .env.example.
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label={t("loading")} />
+      </div>
+    );
+  }
+
+  if (status === "authenticated" && token && user) {
+    return <AppShell user={user} token={token} onLogout={handleLogout} />;
+  }
+
+  return <AuthFlow onAuthenticated={handleAuthenticated} />;
+}
+
 export default function App() {
   return (
     <I18nProvider initialLang="en">
-      <AppShell />
+      <AuthGate />
     </I18nProvider>
   );
 }

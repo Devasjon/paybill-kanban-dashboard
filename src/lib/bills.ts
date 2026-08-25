@@ -22,7 +22,14 @@ export function nextMonthDate(dateStr: string): string {
   d.setMonth(d.getMonth() + 1);
   const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
   d.setDate(Math.min(day, lastDay));
-  return d.toISOString().slice(0, 10);
+  // Build the ISO string from local Y/M/D components rather than
+  // toISOString() (which converts to UTC first) — toISOString() shifts the
+  // date by a day in any timezone behind UTC, since `d` here is midnight
+  // *local* time.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
 }
 
 export function formatDate(dateStr: string, lang: "en" | "ms"): string {

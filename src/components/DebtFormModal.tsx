@@ -5,6 +5,7 @@ import { DEBT_TYPE_ORDER, debtTypeLabelKey } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -26,6 +27,10 @@ export function DebtFormModal({
   const [currentBalance, setCurrentBalance] = useState("");
   const [apr, setApr] = useState("");
   const [minPayment, setMinPayment] = useState("");
+  const [isBalanceTransfer, setIsBalanceTransfer] = useState(false);
+  const [balanceTransferMonths, setBalanceTransferMonths] = useState("");
+  const [balanceTransferAmount, setBalanceTransferAmount] = useState("");
+  const [balanceTransferEndDate, setBalanceTransferEndDate] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -35,6 +40,10 @@ export function DebtFormModal({
       setCurrentBalance(initial?.currentBalance?.toString() ?? "");
       setApr(initial?.apr?.toString() ?? "");
       setMinPayment(initial?.minPayment?.toString() ?? "");
+      setIsBalanceTransfer(initial?.isBalanceTransfer ?? false);
+      setBalanceTransferMonths(initial?.balanceTransferMonths?.toString() ?? "");
+      setBalanceTransferAmount(initial?.balanceTransferAmount?.toString() ?? "");
+      setBalanceTransferEndDate(initial?.balanceTransferEndDate ?? "");
     }
   }, [open, initial]);
 
@@ -48,6 +57,17 @@ export function DebtFormModal({
       currentBalance: parseFloat(currentBalance),
       apr: apr ? parseFloat(apr) : undefined,
       minPayment: minPayment ? parseFloat(minPayment) : undefined,
+      isBalanceTransfer: type === "creditCard" && isBalanceTransfer,
+      balanceTransferMonths:
+        type === "creditCard" && isBalanceTransfer && balanceTransferMonths
+          ? parseFloat(balanceTransferMonths)
+          : undefined,
+      balanceTransferAmount:
+        type === "creditCard" && isBalanceTransfer && balanceTransferAmount
+          ? parseFloat(balanceTransferAmount)
+          : undefined,
+      balanceTransferEndDate:
+        type === "creditCard" && isBalanceTransfer && balanceTransferEndDate ? balanceTransferEndDate : undefined,
     });
     onOpenChange(false);
   }
@@ -125,6 +145,53 @@ export function DebtFormModal({
                 />
               </div>
             </div>
+
+            {type === "creditCard" && (
+              <div className="rounded-xl border border-black/10 p-3.5">
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">{t("fieldIsBalanceTransfer")}</span>
+                  <Switch checked={isBalanceTransfer} onCheckedChange={setIsBalanceTransfer} />
+                </label>
+
+                {isBalanceTransfer && (
+                  <div className="grid gap-3 mt-3.5">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="debt-bt-amount">{t("fieldBalanceTransferAmount")}</Label>
+                      <Input
+                        id="debt-bt-amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={balanceTransferAmount}
+                        onChange={(e) => setBalanceTransferAmount(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="debt-bt-months">{t("fieldBalanceTransferMonths")}</Label>
+                        <Input
+                          id="debt-bt-months"
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={balanceTransferMonths}
+                          onChange={(e) => setBalanceTransferMonths(e.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="debt-bt-end">{t("fieldBalanceTransferEndDate")}</Label>
+                        <Input
+                          id="debt-bt-end"
+                          type="date"
+                          value={balanceTransferEndDate}
+                          onChange={(e) => setBalanceTransferEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <Button onClick={handleSave} className="w-full mt-6 rounded-full h-11 bg-[#17171d] hover:bg-[#26262f]">
